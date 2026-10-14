@@ -1,0 +1,514 @@
+{
+  "Boiled rice fish": {
+    "menu": "ข้าวต้มปลา",
+    "servingLabel": "1 จาน",
+    "source": null,
+    "sourceUrl": null,
+    "nutrition": {
+      "calories": null,
+      "carbs": null,
+      "sugar": null,
+      "protein": null,
+      "fat": null,
+      "saturatedFat": null,
+      "sodium": null,
+      "fiber": null
+    }
+  },
+  "Fak Thong Pad Khai": {
+    "menu": "ฟักทองผัดไข่",
+    "servingLabel": "1 จาน",
+    "source": null,
+    "sourceUrl": null,
+    "nutrition": {
+      "calories": null,
+      "carbs": null,
+      "sugar": null,
+      "protein": null,
+      "fat": null,
+      "saturatedFat": null,
+      "sodium": null,
+      "fiber": null
+    }
+  },
+  "Fried Egg": {
+    "menu": "ไข่ดาว",
+    "servingLabel": "1 จาน",
+    "source": null,
+    "sourceUrl": null,
+    "nutrition": {
+      "calories": null,
+      "carbs": null,
+      "sugar": null,
+      "protein": null,
+      "fat": null,
+      "saturatedFat": null,
+      "sodium": null,
+      "fiber": null
+    }
+  },
+  "Fried rice": {
+    "menu": "ข้าวผัด",
+    "servingLabel": "1 จาน",
+    "source": null,
+    "sourceUrl": null,
+    "nutrition": {
+      "calories": null,
+      "carbs": null,
+      "sugar": null,
+      "protein": null,
+      "fat": null,
+      "saturatedFat": null,
+      "sodium": null,
+      "fiber": null
+    }
+  },
+  "Kaeng Chuet Phak Kat Khao": {
+    "menu": "แกงจืดผักกาดขาว",
+    "servingLabel": "1 จาน",
+    "source": null,
+    "sourceUrl": null,
+    "nutrition": {
+      "calories": null,
+      "carbs": null,
+      "sugar": null,
+      "protein": null,
+      "fat": null,
+      "saturatedFat": null,
+      "sodium": null,
+      "fiber": null
+    }
+  },
+  "Kaeng Chuet Tamlueng Mu Sap": {
+    "menu": "แกงจืดตำลึงหมูสับ",
+    "servingLabel": "1 จาน",
+    "source": null,
+    "sourceUrl": null,
+    "nutrition": {
+      "calories": null,
+      "carbs": null,
+      "sugar": null,
+      "protein": null,
+      "fat": null,
+      "saturatedFat": null,
+      "sodium": null,
+      "fiber": null
+    }
+  },
+  "Kaeng Chuet Tao Hu Mu Sap": {
+    "menu": "แกงจืดเต้าหู้หมูสับ",
+    "servingLabel": "1 จาน",
+    "source": null,
+    "sourceUrl": null,
+    "nutrition": {
+      "calories": null,
+      "carbs": null,
+      "sugar": null,
+      "protein": null,
+      "fat": null,
+      "saturatedFat": null,
+      "sodium": null,
+      "fiber": null
+    }
+  },
+  "Kaeng Lieng": {
+    "menu": "แกงเลียง",
+    "servingLabel": "1 จาน",
+    "source": null,
+    "sourceUrl": null,
+    "nutrition": {
+      "calories": null,
+      "carbs": null,
+      "sugar": null,
+      "protein": null,
+      "fat": null,
+      "saturatedFat": null,
+      "sodium": null,
+      "fiber": null
+    }
+  },
+  "Kai Tun Fak": {
+    "menu": "ไก่ตุ๋นฟัก",
+    "servingLabel": "1 จาน",
+    "source": null,
+    "sourceUrl": null,
+    "nutrition": {
+      "calories": null,
+      "carbs": null,
+      "sugar": null,
+      "protein": null,
+      "fat": null,
+      "saturatedFat": null,
+      "sodium": null,
+      "fiber": null
+    }
+  },
+  "Khao Tom Moo": {
+    "menu": "ข้าวต้มหมูสับ",
+    "servingLabel": "1 จาน",
+    "source": null,
+    "sourceUrl": null,
+    "nutrition": {
+      "calories": null,
+      "carbs": null,
+      "sugar": null,
+      "protein": null,
+      "fat": null,
+      "saturatedFat": null,
+      "sodium": null,
+      "fiber": null
+    }
+  },
+  "NoodleSoup": {
+    "menu": "ก๋วยเตี๋ยวน้ำใส",
+    "servingLabel": "1 จาน",
+    "source": null,
+    "sourceUrl": null,
+    "nutrition": {
+      "calories": null,
+      "carbs": null,
+      "sugar": null,
+      "protein": null,
+      "fat": null,
+      "saturatedFat": null,
+      "sodium": null,
+      "fiber": null
+    }
+  },
+  "Omelet": {
+    "menu": "ข้าวไข่เจียว",
+    "servingLabel": "1 จาน",
+    "source": null,
+    "sourceUrl": null,
+    "nutrition": {
+      "calories": null,
+      "carbs": null,
+      "sugar": null,
+      "protein": null,
+      "fat": null,
+      "saturatedFat": null,
+      "sodium": null,
+      "fiber": null
+    }
+  },
+  "Pad Buab Sai Khai": {
+    "menu": "ผัดบวบใส่ไข่",
+    "servingLabel": "1 จาน",
+    "source": null,
+    "sourceUrl": null,
+    "nutrition": {
+      "calories": null,
+      "carbs": null,
+      "sugar": null,
+      "protein": null,
+      "fat": null,
+      "saturatedFat": null,
+      "sodium": null,
+      "fiber": null
+    }
+  },
+  "Pad Ka-lam-plee Sai Moo": {
+    "menu": "ผัดกะหล่ำปลีใส่หมู",
+    "servingLabel": "1 จาน",
+    "source": null,
+    "sourceUrl": null,
+    "nutrition": {
+      "calories": null,
+      "carbs": null,
+      "sugar": null,
+      "protein": null,
+      "fat": null,
+      "saturatedFat": null,
+      "sodium": null,
+      "fiber": null
+    }
+  },
+  "Pad Kaprao": {
+    "menu": "ผัดกะเพรา",
+    "servingLabel": "1 จาน",
+    "source": null,
+    "sourceUrl": null,
+    "nutrition": {
+      "calories": null,
+      "carbs": null,
+      "sugar": null,
+      "protein": null,
+      "fat": null,
+      "saturatedFat": null,
+      "sodium": null,
+      "fiber": null
+    }
+  },
+  "PadPhakKatKhao": {
+    "menu": "ผัดผักกาดขาว",
+    "servingLabel": "1 จาน",
+    "source": null,
+    "sourceUrl": null,
+    "nutrition": {
+      "calories": null,
+      "carbs": null,
+      "sugar": null,
+      "protein": null,
+      "fat": null,
+      "saturatedFat": null,
+      "sodium": null,
+      "fiber": null
+    }
+  },
+  "PadPreawWan": {
+    "menu": "ผัดเปรี้ยวหวาน",
+    "servingLabel": "1 จาน",
+    "source": null,
+    "sourceUrl": null,
+    "nutrition": {
+      "calories": null,
+      "carbs": null,
+      "sugar": null,
+      "protein": null,
+      "fat": null,
+      "saturatedFat": null,
+      "sodium": null,
+      "fiber": null
+    }
+  },
+  "PadSeeEw": {
+    "menu": "ผัดซีอิ๊ว",
+    "servingLabel": "1 จาน",
+    "source": null,
+    "sourceUrl": null,
+    "nutrition": {
+      "calories": null,
+      "carbs": null,
+      "sugar": null,
+      "protein": null,
+      "fat": null,
+      "saturatedFat": null,
+      "sodium": null,
+      "fiber": null
+    }
+  },
+  "Pla Nueng Ma-nao": {
+    "menu": "ปลานึ่งมะนาว",
+    "servingLabel": "1 จาน",
+    "source": null,
+    "sourceUrl": null,
+    "nutrition": {
+      "calories": null,
+      "carbs": null,
+      "sugar": null,
+      "protein": null,
+      "fat": null,
+      "saturatedFat": null,
+      "sodium": null,
+      "fiber": null
+    }
+  },
+  "Pla nueng si-io": {
+    "menu": "ปลานึ่งซีอิ๊ว",
+    "servingLabel": "1 จาน",
+    "source": null,
+    "sourceUrl": null,
+    "nutrition": {
+      "calories": null,
+      "carbs": null,
+      "sugar": null,
+      "protein": null,
+      "fat": null,
+      "saturatedFat": null,
+      "sodium": null,
+      "fiber": null
+    }
+  },
+  "PlaPadKhuenChai": {
+    "menu": "ปลาผัดขึ้นฉ่าย",
+    "servingLabel": "1 จาน",
+    "source": null,
+    "sourceUrl": null,
+    "nutrition": {
+      "calories": null,
+      "carbs": null,
+      "sugar": null,
+      "protein": null,
+      "fat": null,
+      "saturatedFat": null,
+      "sodium": null,
+      "fiber": null
+    }
+  },
+  "Rice": {
+    "menu": "ข้าวสวย",
+    "servingLabel": "1 จาน",
+    "source": null,
+    "sourceUrl": null,
+    "nutrition": {
+      "calories": null,
+      "carbs": null,
+      "sugar": null,
+      "protein": null,
+      "fat": null,
+      "saturatedFat": null,
+      "sodium": null,
+      "fiber": null
+    }
+  },
+  "Sukiyaki Soup": {
+    "menu": "สุกี้ (น้ำ)",
+    "servingLabel": "1 จาน",
+    "source": null,
+    "sourceUrl": null,
+    "nutrition": {
+      "calories": null,
+      "carbs": null,
+      "sugar": null,
+      "protein": null,
+      "fat": null,
+      "saturatedFat": null,
+      "sodium": null,
+      "fiber": null
+    }
+  },
+  "TangGwaPadKai": {
+    "menu": "ผัดแตงกวาใส่ไข่",
+    "servingLabel": "1 จาน",
+    "source": null,
+    "sourceUrl": null,
+    "nutrition": {
+      "calories": null,
+      "carbs": null,
+      "sugar": null,
+      "protein": null,
+      "fat": null,
+      "saturatedFat": null,
+      "sodium": null,
+      "fiber": null
+    }
+  },
+  "Tao Hu Song Khrueang": {
+    "menu": "เต้าหู้ทรงเครื่อง",
+    "servingLabel": "1 จาน",
+    "source": null,
+    "sourceUrl": null,
+    "nutrition": {
+      "calories": null,
+      "carbs": null,
+      "sugar": null,
+      "protein": null,
+      "fat": null,
+      "saturatedFat": null,
+      "sodium": null,
+      "fiber": null
+    }
+  },
+  "Tom Kha Gai": {
+    "menu": "ต้มข่าไก่",
+    "servingLabel": "1 จาน",
+    "source": null,
+    "sourceUrl": null,
+    "nutrition": {
+      "calories": null,
+      "carbs": null,
+      "sugar": null,
+      "protein": null,
+      "fat": null,
+      "saturatedFat": null,
+      "sodium": null,
+      "fiber": null
+    }
+  },
+  "TomJabChai": {
+    "menu": "ต้มจับฉ่าย",
+    "servingLabel": "1 จาน",
+    "source": null,
+    "sourceUrl": null,
+    "nutrition": {
+      "calories": null,
+      "carbs": null,
+      "sugar": null,
+      "protein": null,
+      "fat": null,
+      "saturatedFat": null,
+      "sodium": null,
+      "fiber": null
+    }
+  },
+  "Yam Khai Tom": {
+    "menu": "ยำไข่ต้ม",
+    "servingLabel": "1 จาน",
+    "source": null,
+    "sourceUrl": null,
+    "nutrition": {
+      "calories": null,
+      "carbs": null,
+      "sugar": null,
+      "protein": null,
+      "fat": null,
+      "saturatedFat": null,
+      "sodium": null,
+      "fiber": null
+    }
+  },
+  "bitter melon pork soup": {
+    "menu": "มะระยัดไส้",
+    "servingLabel": "1 จาน",
+    "source": null,
+    "sourceUrl": null,
+    "nutrition": {
+      "calories": null,
+      "carbs": null,
+      "sugar": null,
+      "protein": null,
+      "fat": null,
+      "saturatedFat": null,
+      "sodium": null,
+      "fiber": null
+    }
+  },
+  "khai tom": {
+    "menu": "ไข่ต้ม",
+    "servingLabel": "1 จาน",
+    "source": null,
+    "sourceUrl": null,
+    "nutrition": {
+      "calories": null,
+      "carbs": null,
+      "sugar": null,
+      "protein": null,
+      "fat": null,
+      "saturatedFat": null,
+      "sodium": null,
+      "fiber": null
+    }
+  },
+  "khai tun": {
+    "menu": "ไข่ตุ๋น",
+    "servingLabel": "1 จาน",
+    "source": null,
+    "sourceUrl": null,
+    "nutrition": {
+      "calories": null,
+      "carbs": null,
+      "sugar": null,
+      "protein": null,
+      "fat": null,
+      "saturatedFat": null,
+      "sodium": null,
+      "fiber": null
+    }
+  },
+  "tom_luad_moo": {
+    "menu": "ต้มเลือดหมู",
+    "servingLabel": "1 จาน",
+    "source": null,
+    "sourceUrl": null,
+    "nutrition": {
+      "calories": null,
+      "carbs": null,
+      "sugar": null,
+      "protein": null,
+      "fat": null,
+      "saturatedFat": null,
+      "sodium": null,
+      "fiber": null
+    }
+  }
+}

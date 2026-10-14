@@ -1,80 +1,38 @@
-import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { Modal, Text, TouchableOpacity, View } from 'react-native';
+import { BottomNav, Button, Field, Icon, Logo, Message, palette, Screen, Select, ui } from '@/components/design-system';
+import { getPatients, getProfile, Patient, Profile, savePatients } from '@/services/profile-storage';
 
 export default function CaregiverHomeScreen() {
-  return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        
-        <View style={styles.header}>
-          <View style={styles.profileCircle}>
-            <Text style={styles.profileEmoji}>👨‍⚕️</Text>
-          </View>
-          <View style={styles.headerTextContainer}>
-            <Text style={styles.greetingText}>สวัสดี,</Text>
-            <Text style={styles.nameText}>หมอสมชาย (ผู้ดูแล)</Text>
-          </View>
-        </View>
-
-        <Text style={styles.sectionTitle}>ผู้สูงอายุในความดูแล</Text>
-
-        {/* รายชื่อผู้สูงอายุ (คนแรก) */}
-        <TouchableOpacity style={styles.patientCard}>
-          <View style={styles.patientHeader}>
-            <View style={styles.patientAvatar}><Text style={{fontSize: 20}}>👵</Text></View>
-            <View style={styles.patientInfo}>
-              <Text style={styles.patientName}>คุณยาย สมศรี ใจดี</Text>
-              <Text style={styles.patientStatus}>ทานไปแล้ว: 1,030 / 1,500 kcal</Text>
-            </View>
-            <Text style={styles.statusNormal}>ปกติ</Text>
-          </View>
-          
-          <View style={styles.progressBarBg}>
-            <View style={[styles.progressBarFill, { width: '68%' }]} />
-          </View>
-          
-          <View style={styles.actionButtonsRow}>
-            <TouchableOpacity style={styles.viewDetailBtn}>
-              <Text style={styles.viewDetailText}>ดูรายละเอียดมื้ออาหาร</Text>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-
-        {/* ปุ่มเพิ่มผู้สูงอายุ */}
-        <TouchableOpacity style={styles.addPatientBtn}>
-          <Text style={styles.addPatientText}>+ เพิ่มผู้สูงอายุในการดูแล</Text>
-        </TouchableOpacity>
-
-      </ScrollView>
-    </SafeAreaView>
-  );
+  const router = useRouter();
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState({ firstName: '', lastName: '', phone: '', gender: '' });
+  const [message, setMessage] = useState('');
+  const [saving, setSaving] = useState(false);
+  useFocusEffect(useCallback(() => {
+    let active = true;
+    Promise.all([getProfile('caregiver'), getPatients()]).then(([p, list]) => { if (active) { setProfile(p); setPatients(list); } }).catch(() => { if (active) setMessage('โหลดข้อมูลไม่สำเร็จ'); });
+    return () => { active = false; };
+  }, []));
+  const add = async () => {
+    if (!draft.firstName.trim() || !draft.lastName.trim() || !draft.phone.trim() || !draft.gender) { setMessage('กรุณากรอกข้อมูลให้ครบ'); return; }
+    setSaving(true);
+    try { const next = [...patients, { ...draft, id: Date.now().toString() }]; await savePatients(next); setPatients(next); setOpen(false); setDraft({ firstName: '', lastName: '', phone: '', gender: '' }); setMessage(''); }
+    catch { setMessage('บันทึกรายชื่อไม่สำเร็จ'); } finally { setSaving(false); }
+  };
+  return <Screen bottom={<BottomNav active="home" caregiver />}>
+    <View style={[ui.row, { marginTop: 6, gap: 12 }]}><Logo small /><View style={{ flex: 1, minHeight: 88, borderWidth: 1.5, borderColor: '#252A26', borderRadius: 14, padding: 12, justifyContent: 'center' }}><Text style={{ color: palette.green, fontWeight: '700', textAlign: 'right', marginBottom: 4 }}>ผู้ดูแล</Text><Text style={ui.body}>ชื่อ {profile?.firstName || 'ยังไม่ได้กรอก'}</Text><Text style={ui.body}>นามสกุล {profile?.lastName || 'ยังไม่ได้กรอก'}</Text></View></View>
+    <Text style={[ui.section, { marginTop: 20 }]}>ผู้สูงอายุในการดูแล</Text>
+    {patients.map((patient) => <TouchableOpacity key={patient.id} onPress={() => router.push({ pathname: '/elderly-home', params: { patient: patient.id } })} style={{ borderWidth: 1, borderLeftWidth: 3, borderColor: palette.green, borderRadius: 14, padding: 13, gap: 16 }}>
+      <View style={ui.between}><View style={ui.row}><View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: '#E4E7E5', alignItems: 'center', justifyContent: 'center' }}><Icon name="person" color="#202824" size={24} /></View><Text style={ui.body}>{patient.firstName} {patient.lastName}</Text></View><View style={[ui.badge, patient.gender === 'หญิง' && { backgroundColor: '#FAD9F1' }]}><Text style={[ui.badgeText, patient.gender === 'หญิง' && { color: '#A94E95' }]}>{patient.gender}</Text></View></View>
+      <View style={ui.between}><View style={ui.row}><Icon name="phone" color="#202824" size={17} /><Text style={ui.body}>{patient.phone}</Text></View><Icon name="chevron" size={18} color="#202824" /></View>
+    </TouchableOpacity>)}
+    <TouchableOpacity accessibilityLabel="เพิ่มผู้สูงอายุในการดูแล" onPress={() => { setOpen(true); setMessage(''); }} style={{ borderWidth: 1.5, borderColor: '#A3AAB0', borderRadius: 12, minHeight: 46, justifyContent: 'center', paddingHorizontal: 12 }}><Icon name="plus" size={24} color="#8B949C" /></TouchableOpacity>
+    {!patients.length && <Text style={[ui.subtitle, { textAlign: 'center' }]}>กด + เพื่อเพิ่มรายชื่อผู้สูงอายุในการดูแล</Text>}
+    {!open && <Message text={message} />}
+    <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}><View style={ui.modalOverlay}><View style={ui.modal}><Text style={ui.section}>เพิ่มผู้สูงอายุในการดูแล</Text><Field label="ชื่อ" value={draft.firstName} onChangeText={(firstName) => setDraft((old) => ({ ...old, firstName }))} /><Field label="นามสกุล" value={draft.lastName} onChangeText={(lastName) => setDraft((old) => ({ ...old, lastName }))} /><Field label="เบอร์โทรศัพท์" value={draft.phone} keyboardType="phone-pad" onChangeText={(phone) => setDraft((old) => ({ ...old, phone }))} /><Select label="เพศ" value={draft.gender} options={['ชาย', 'หญิง']} onChange={(gender) => setDraft((old) => ({ ...old, gender }))} /><Message text={message} /><Button title="เพิ่มรายชื่อ" onPress={add} loading={saving} /><TouchableOpacity disabled={saving} onPress={() => setOpen(false)}><Text style={ui.link}>ยกเลิก</Text></TouchableOpacity></View></View></Modal>
+  </Screen>;
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F2F6FF' },
-  scrollContent: { padding: 20 },
-  header: { flexDirection: 'row', alignItems: 'center', marginBottom: 30, marginTop: 20 },
-  profileCircle: { width: 60, height: 60, borderRadius: 30, backgroundColor: '#E0E7FF', alignItems: 'center', justifyContent: 'center', marginRight: 15 },
-  profileEmoji: { fontSize: 30 },
-  headerTextContainer: { flex: 1 },
-  greetingText: { fontSize: 14, color: '#6B7280' },
-  nameText: { fontSize: 20, fontWeight: 'bold', color: '#111827' },
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#111827', marginBottom: 15 },
-  
-  patientCard: { backgroundColor: '#FFFFFF', padding: 20, borderRadius: 16, marginBottom: 15, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2 },
-  patientHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 15 },
-  patientAvatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  patientInfo: { flex: 1 },
-  patientName: { fontSize: 16, fontWeight: 'bold', color: '#111827' },
-  patientStatus: { fontSize: 12, color: '#6B7280', marginTop: 2 },
-  statusNormal: { backgroundColor: '#D1FAE5', color: '#065F46', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, fontSize: 12, fontWeight: 'bold', overflow: 'hidden' },
-  
-  progressBarBg: { height: 6, backgroundColor: '#E5E7EB', borderRadius: 3, width: '100%', overflow: 'hidden', marginBottom: 15 },
-  progressBarFill: { height: '100%', backgroundColor: '#1C6741', borderRadius: 3 },
-  
-  actionButtonsRow: { flexDirection: 'row', justifyContent: 'flex-end' },
-  viewDetailBtn: { backgroundColor: '#F3F4F6', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 8 },
-  viewDetailText: { color: '#374151', fontSize: 14, fontWeight: '500' },
-  
-  addPatientBtn: { backgroundColor: '#E0E7FF', padding: 15, borderRadius: 12, alignItems: 'center', borderStyle: 'dashed', borderWidth: 1, borderColor: '#818CF8', marginTop: 10 },
-  addPatientText: { color: '#4F46E5', fontWeight: 'bold', fontSize: 16 },
-});

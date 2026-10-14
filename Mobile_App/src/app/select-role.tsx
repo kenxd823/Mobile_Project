@@ -1,75 +1,39 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Text, TouchableOpacity, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Button, Icon, Logo, Message, palette, Screen, ui } from '@/components/design-system';
+import { getProfile } from '@/services/profile-storage';
+import { useAuth } from '@/hooks/use-auth';
 
 export default function SelectRoleScreen() {
   const router = useRouter();
-  const [selectedRole, setSelectedRole] = useState<string | null>(null);
-
-  const handleNext = () => {
-    if (selectedRole === 'caregiver') {
-      router.push('/caregiver-home'); // ลบ // ออก
-    } else if (selectedRole === 'elderly') {
-      router.push('/elderly-home'); // ลบ // ออก
-    } else {
-      alert('กรุณาเลือกบทบาทก่อนครับ');
-    }
+  const { signOut } = useAuth();
+  const [role, setRole] = useState<'caregiver' | 'elderly' | null>(null);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const next = async () => {
+    if (!role) return;
+    setLoading(true);
+    try {
+      await AsyncStorage.setItem('userRole', role);
+      const profile = await getProfile(role);
+      router.replace(role === 'caregiver' ? profile ? '/caregiver-home' : '/caregiver-profile' : profile ? '/elderly-home' : '/elderly-profile');
+    } catch { setError('โหลดข้อมูลไม่สำเร็จ กรุณาลองอีกครั้ง'); } finally { setLoading(false); }
   };
-
-  return (
-    <View style={styles.container}>
-      <View style={styles.logoContainer}>
-        <Text style={styles.logoText}>LOGO</Text>
-      </View>
-
-      <Text style={styles.title}>เลือกบทบาท</Text>
-
-      <View style={styles.roleContainer}>
-        {/* ปุ่มเลือก ผู้ดูแล */}
-        <TouchableOpacity 
-          style={[styles.roleCard, selectedRole === 'caregiver' && styles.roleCardActive]} 
-          onPress={() => setSelectedRole('caregiver')}
-        >
-          <Text style={styles.iconText}>👨‍⚕️</Text>
-          <Text style={styles.roleTitle}>ผู้ดูแล</Text>
-          <View style={[styles.radioCircle, selectedRole === 'caregiver' && styles.radioActive]} />
+  return <Screen auth>
+    <Logo large /><Text style={ui.authTitle}>เลือกบทบาท</Text>
+    <View style={{ flexDirection: 'row', gap: 28, marginTop: 30 }}>
+      {(['caregiver', 'elderly'] as const).map((item) => <View key={item} style={{ flex: 1, alignItems: 'center', gap: 12 }}>
+        <TouchableOpacity accessibilityRole="radio" accessibilityState={{ checked: role === item }} aria-checked={role === item} onPress={() => setRole(item)} style={{ width: '100%', minHeight: 176, borderWidth: 2, borderColor: role === item ? palette.green : '#242824', borderRadius: 14, alignItems: 'center', justifyContent: 'center', gap: 20, backgroundColor: role === item ? '#F2F8F3' : '#FFF' }}>
+          <Icon name={item === 'caregiver' ? 'caregiver' : 'people'} size={70} color="#080B09" />
+          <Text style={[ui.section, { fontSize: 21 }]}>{item === 'caregiver' ? 'ผู้ดูแล' : 'ผู้สูงอายุ'}</Text>
         </TouchableOpacity>
-
-        {/* ปุ่มเลือก ผู้สูงอายุ */}
-        <TouchableOpacity 
-          style={[styles.roleCard, selectedRole === 'elderly' && styles.roleCardActive]} 
-          onPress={() => setSelectedRole('elderly')}
-        >
-          <Text style={styles.iconText}>👵</Text>
-          <Text style={styles.roleTitle}>ผู้สูงอายุ</Text>
-          <View style={[styles.radioCircle, selectedRole === 'elderly' && styles.radioActive]} />
-        </TouchableOpacity>
-      </View>
-
-      <TouchableOpacity 
-        style={[styles.nextButton, !selectedRole && styles.nextButtonDisabled]} 
-        onPress={handleNext}
-        disabled={!selectedRole}
-      >
-        <Text style={styles.nextButtonText}>ตกลง</Text>
-      </TouchableOpacity>
+        <View style={{ width: 22, height: 22, borderWidth: 1, borderColor: role === item ? palette.green : '#555', borderRadius: 11, alignItems: 'center', justifyContent: 'center' }}>{role === item && <Icon name="check" size={16} />}</View>
+      </View>)}
     </View>
-  );
+    <Message text={error} /><View style={ui.spacer} />
+    <Button title="ตกลง" onPress={next} disabled={!role} loading={loading} />
+    <TouchableOpacity style={{ alignSelf: 'center', marginTop: 22, padding: 6 }} onPress={async () => { await signOut(); router.replace('/'); }}><Text style={ui.subtitle}>เปลี่ยนบัญชี</Text></TouchableOpacity>
+  </Screen>;
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFFFF', paddingHorizontal: 24, paddingTop: 80, alignItems: 'center' },
-  logoContainer: { width: 100, height: 100, backgroundColor: '#1C6741', borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginBottom: 40 },
-  logoText: { color: '#FFFFFF', fontSize: 20, fontWeight: 'bold' },
-  title: { fontSize: 22, fontWeight: 'bold', color: '#333333', marginBottom: 40 },
-  roleContainer: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', marginBottom: 60 },
-  roleCard: { width: '45%', aspectRatio: 0.8, borderWidth: 2, borderColor: '#E0E0E0', borderRadius: 16, alignItems: 'center', justifyContent: 'center', padding: 15 },
-  roleCardActive: { borderColor: '#1C6741', backgroundColor: '#F0F7F3' },
-  iconText: { fontSize: 50, marginBottom: 15 },
-  roleTitle: { fontSize: 18, fontWeight: 'bold', color: '#333333', marginBottom: 15 },
-  radioCircle: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: '#CCCCCC' },
-  radioActive: { borderColor: '#1C6741', backgroundColor: '#1C6741' },
-  nextButton: { width: '100%', backgroundColor: '#1C6741', borderRadius: 8, paddingVertical: 14, alignItems: 'center' },
-  nextButtonDisabled: { backgroundColor: '#A5C9B4' },
-  nextButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
-});
