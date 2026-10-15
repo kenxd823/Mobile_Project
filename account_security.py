@@ -50,3 +50,17 @@ def session_email(path, token):
 def revoke_session(path, token):
     with closing(sqlite3.connect(path)) as conn, conn:
         conn.execute('DELETE FROM sessions WHERE token_hash = ?', (hashlib.sha256(token.encode()).hexdigest(),))
+
+
+def delete_authenticated_account(path, token, password):
+    """Verify the session and password, then remove only its account atomically."""
+    with closing(sqlite3.connect(path)) as conn, conn:
+        conn.execute('BEGIN IMMEDIATE')
+        row = conn.execute('SELECT users.email, users.password_hash FROM sessions JOIN users ON users.email = sessions.email WHERE token_hash = ? AND expires_at > ?', (hashlib.sha256(token.encode()).hexdigest(), time.time())).fetchone()
+        if not row:
+            return None, 'session'
+        if len(password) > 128 or not check_password(password, row[1]):
+            return None, 'password'
+        conn.execute('DELETE FROM sessions WHERE email = ?', (row[0],))
+        conn.execute('DELETE FROM users WHERE email = ?', (row[0],))
+        return row[0], None

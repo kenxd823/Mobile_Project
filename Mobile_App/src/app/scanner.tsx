@@ -8,7 +8,8 @@ import EnergyBar from '@/components/energy-bar';
 import { analyzeFood, checkFoodApiConnection } from '@/services/food-api';
 import { finishMeal, getPendingMeal, PendingMeal, savePendingMeal } from '@/services/meal-storage';
 import { ENABLE_TEST_PHOTO_LIBRARY, pickTestPhotoUri } from '@/services/test-photo-picker';
-import { estimateLeftover, formatNutrient, MenuCandidate, PLATE_NUTRIENTS, splitNutrition } from '@/utils/nutrition';
+import { syncMealReminders } from '@/services/meal-reminders';
+import { estimateLeftover, formatNutrient, MenuCandidate, NutritionVariant, PLATE_NUTRIENTS, splitNutrition } from '@/utils/nutrition';
 
 export default function ScannerScreen() {
   const router = useRouter();
@@ -32,11 +33,12 @@ export default function ScannerScreen() {
   const [connection, setConnection] = useState('');
   const [picking, setPicking] = useState(false);
   const [gallerySelected, setGallerySelected] = useState(false);
+  const [reminderMessage, setReminderMessage] = useState('');
   const cameraRef = useRef<CameraView>(null);
   const busy = useRef(false);
   const mounted = useRef(true);
   const activePhotoUri = capturingAfter ? afterPhotoUri : photoUri;
-  const canSave = stage === 'before' ? !meal?.candidates?.length || menuConfirmed : stage === 'saved' || (!!afterPhotoUri && (afterMethod === 'manual' || afterMethod === 'empty' || (afterMethod === 'photo' && photoEstimate !== null)));
+  const canSave = stage === 'before' ? (!meal?.candidates?.length || menuConfirmed) && (!meal?.nutritionVariants?.length || !!meal.nutritionVariantId) : stage === 'saved' || (!!afterPhotoUri && (afterMethod === 'manual' || afterMethod === 'empty' || (afterMethod === 'photo' && photoEstimate !== null)));
   const working = loading || checking || picking;
 
   useFocusEffect(useCallback(() => {
@@ -102,7 +104,12 @@ export default function ScannerScreen() {
 
   const chooseMenu = (candidate: MenuCandidate) => {
     if (!meal || working) return;
-    setMeal({ ...meal, ...candidate, candidates: meal.candidates }); setMenuConfirmed(true); setError('');
+    setMeal({ ...meal, ...candidate, nutritionVariants: candidate.nutritionVariants, nutritionVariantId: undefined, candidates: meal.candidates }); setMenuConfirmed(true); setError('');
+  };
+  const chooseNutritionVariant = (variant: NutritionVariant) => {
+    if (!meal || working) return;
+    setMeal({ ...meal, menu: variant.label, nutrition: variant.nutrition, nutritionVariantId: variant.id, servingLabel: variant.servingLabel, source: variant.source, sourceUrl: variant.sourceUrl });
+    setError('');
   };
 
   // Temporary gallery entry point; analysis still runs through handleCapture.
@@ -147,11 +154,18 @@ export default function ScannerScreen() {
     setError('');
     try {
       if (stage === 'before') {
-        await savePendingMeal(meal);
-        if (mounted.current) setStage('after');
+        const startedMeal = { ...meal, startedAt: new Date().toISOString() };
+        await savePendingMeal(startedMeal);
+        if (mounted.current) { setMeal(startedMeal); setStage('after'); }
+        try {
+          const result = await syncMealReminders(true);
+          if (mounted.current) setReminderMessage(!result.supported ? 'บันทึกมื้อแล้ว เว็บมีข้อความเตือนในแอป การแจ้งเตือนเมื่อปิดแอปใช้บนมือถือ' : !result.afterMeal ? 'การเตือนหลังกินปิดอยู่ เปิดได้ในตั้งค่า' : result.allowed ? 'ตั้งเตือนถ่ายภาพหลังกินตามการตั้งค่าแล้ว' : 'บันทึกมื้อแล้ว กรุณาอนุญาตแจ้งเตือนในตั้งค่ามือถือเพื่อรับการเตือนหลังกิน');
+        } catch { if (mounted.current) setReminderMessage('บันทึกมื้อแล้ว แต่ตั้งแจ้งเตือนไม่สำเร็จ อย่าลืมกลับมาถ่ายภาพหลังกิน'); }
       } else {
         await finishMeal(meal, leftover, { afterPhotoRecordedAt: new Date().toISOString(), method: afterMethod ?? 'manual' });
         if (mounted.current) setStage('saved');
+        try { await syncMealReminders(); if (mounted.current) setReminderMessage('บันทึกครบแล้ว ยกเลิกการเตือนหลังกินของมื้อนี้แล้ว'); }
+        catch { if (mounted.current) setReminderMessage('บันทึกครบแล้ว แต่ปรับการแจ้งเตือนไม่สำเร็จ กรุณาเปิดแอปใหม่'); }
       }
     } catch {
       if (mounted.current) setError('บันทึกมื้ออาหารไม่สำเร็จ กรุณาลองอีกครั้ง');
@@ -162,6 +176,7 @@ export default function ScannerScreen() {
   };
   const retake = () => {
     setReady(false); setError(''); setConnection(''); setGallerySelected(false);
+    setReminderMessage('');
     if (capturingAfter) { setAfterPhotoUri(null); return; }
     setMeal(null); setPhotoUri(null); setAfterPhotoUri(null); setAfterMethod(null); setPhotoEstimate(null); setStage('before'); setLeftover(100); setMenuConfirmed(false); setEmptyHint(false);
   };
@@ -193,6 +208,7 @@ export default function ScannerScreen() {
           <TouchableOpacity disabled={loading} onPress={leaveScanner} style={styles.back}><Text style={styles.link}>← กลับ</Text></TouchableOpacity>
           <Text style={styles.title}>{stage === 'saved' ? 'บันทึกมื้ออาหารแล้ว' : after ? 'หลังกินอาหาร' : 'อาหารก่อนกิน'}</Text>
           <Text style={styles.subtitle}>{after ? 'คำนวณสารอาหารจากสัดส่วนที่คุณกิน' : 'ตรวจสอบเมนูและสารอาหารก่อนเริ่มกิน'}</Text>
+          {!!reminderMessage && <Text style={styles.note}>{reminderMessage}</Text>}
           {(after ? afterPhotoUri || photoUri : photoUri) && <Image source={{ uri: after ? afterPhotoUri || photoUri! : photoUri! }} style={styles.preview} />}
           {stage === 'before' && !!meal.candidates?.length && <View style={styles.card}>
             <Text style={styles.sectionTitle}>เลือกเมนูที่ตรงกับอาหารของคุณ</Text>
@@ -201,6 +217,12 @@ export default function ScannerScreen() {
           </View>}
           <View style={styles.card}><Text style={styles.caption}>เมนูที่ตรวจพบ</Text><Text style={styles.menu}>{meal.menu}</Text><Text style={styles.note}>{meal.nutritionBasis === 'fixed-serving' ? `ค่าโภชนาการคงที่ต่อ ${meal.servingLabel || '1 จาน'} · ไม่เปลี่ยนตามขนาดภาพ` : 'มื้อจากเวอร์ชันเดิม ใช้ค่าโภชนาการที่บันทึกไว้'}</Text>{meal.nutritionBasis === 'fixed-serving' && <Text style={styles.note}>{meal.source ? `แหล่งข้อมูล: ${meal.source}` : 'ยังไม่ได้ใส่ข้อมูลอ้างอิง ค่าโภชนาการจะแสดงว่าไม่มีข้อมูล แต่ยังบันทึกเปอร์เซ็นต์ที่กินได้'}</Text>}</View>
           {stage === 'before' && <Text style={styles.note}>ตรวจสอบว่าเมนูตรงกับอาหารจริงก่อนบันทึก{!meal.comparisonReady ? ' · ยังไม่พบช้อนสำหรับเทียบปริมาณ มื้อนี้ใช้ปรับหลังกินเองได้' : ''}</Text>}
+          {stage === 'before' && !!meal.nutritionVariants?.length && <View style={styles.card}>
+            <Text style={styles.sectionTitle}>เลือกสูตรอาหารก่อนบันทึก</Text>
+            {meal.nutritionVariants.map(variant => <TouchableOpacity key={variant.id} accessibilityRole="radio" accessibilityLabel={variant.label} accessibilityState={{ checked: meal.nutritionVariantId === variant.id }} aria-checked={meal.nutritionVariantId === variant.id} disabled={working} onPress={() => chooseNutritionVariant(variant)} style={{ padding: 14, minHeight: 56, borderWidth: 1.5, borderRadius: 12, borderColor: meal.nutritionVariantId === variant.id ? '#1C6741' : '#E1E8E3', backgroundColor: meal.nutritionVariantId === variant.id ? '#EAF5EC' : '#FFF', gap: 5 }}>
+              <Text style={styles.label}>{variant.label}</Text><Text style={styles.note}>{formatNutrient(variant.nutrition.calories)} kcal · {variant.servingLabel}</Text>
+            </TouchableOpacity>)}
+          </View>}
           {after && <View style={styles.card}>
             {stage !== 'saved' && <>
               <Text style={styles.sectionTitle}>{afterPhotoUri ? 'บันทึกผลจากภาพหลังกิน' : 'ถ่ายภาพหลังกินก่อนบันทึก'}</Text>
@@ -258,7 +280,7 @@ export default function ScannerScreen() {
       <View style={styles.content}>
         <TouchableOpacity disabled={working} onPress={leaveCamera} style={styles.back}><Text style={styles.link}>← กลับ</Text></TouchableOpacity>
         <Text style={styles.title}>{capturingAfter ? 'ถ่ายอาหารหลังกิน' : 'ถ่ายอาหารก่อนกิน'}</Text>
-        <Text style={styles.subtitle}>{capturingAfter ? 'ใช้จานและช้อนอันเดิม ถ่ายจากมุมและระยะใกล้เคียงก่อนกิน' : 'ถ่ายจากด้านบน ให้เห็นอาหารทั้งจานและหัวช้อนชัด แสงสว่าง ถือกล้องนิ่ง'}</Text>
+        <Text style={styles.subtitle}>{capturingAfter ? 'ใช้จานและช้อนอันเดิม ให้เห็นหัวช้อนชัดและมีด้ามช้อนในภาพ ถ่ายจากมุมและระยะใกล้เคียงก่อนกิน' : 'ถ่ายจากด้านบน ให้เห็นอาหารทั้งจานและหัวช้อนชัด มีด้ามช้อนในภาพเพื่อช่วยแยกหัวช้อน แสงสว่าง ถือกล้องนิ่ง'}</Text>
       </View>
       <View style={styles.cameraFrame}>
         {activePhotoUri ? <Image source={{ uri: activePhotoUri }} style={styles.camera} /> : focused && <CameraView ref={cameraRef} style={styles.camera} facing="back" onCameraReady={() => setReady(true)} onMountError={() => { setReady(false); setError('เปิดกล้องไม่ได้ กรุณาตรวจสอบสิทธิ์กล้องหรือเปิดหน้านี้ใหม่'); }} />}

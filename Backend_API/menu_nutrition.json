@@ -1,19 +1,23 @@
 {
   "Boiled rice fish": {
     "menu": "ข้าวต้มปลา",
-    "servingLabel": "1 จาน",
-    "source": null,
-    "sourceUrl": null,
+    "servingLabel": "1 ที่ตามสูตรอ้างอิง",
+    "source": "คู่มือตำรับอาหารมาตรฐานในโรงพยาบาล หน้า 102 · ข้าวต้มปลา · ข้อมูลตารางที่ผู้ใช้ส่งใน Proposal.pdf หน้า 10",
+    "sourceUrl": "https://phdb.moph.go.th/ebook/20241017111344/index.html",
     "nutrition": {
-      "calories": null,
-      "carbs": null,
-      "sugar": null,
-      "protein": null,
-      "fat": null,
+      "calories": 426.79,
+      "carbs": 45.03,
+      "sugar": 2.15,
+      "protein": 20.1,
+      "fat": 18.47,
       "saturatedFat": null,
       "sodium": null,
-      "fiber": null
-    }
+      "fiber": 0.51
+    },
+    "referenceRecipe": "ข้าวต้มปลา",
+    "sourcePage": 102,
+    "providedDocument": "Proposal.pdf",
+    "providedDocumentPage": 10
   },
   "Fak Thong Pad Khai": {
     "menu": "ฟักทองผัดไข่",
@@ -48,20 +52,24 @@
     }
   },
   "Fried rice": {
-    "menu": "ข้าวผัด",
-    "servingLabel": "1 จาน",
-    "source": null,
-    "sourceUrl": null,
+    "menu": "ข้าวผัดไก่และแตงกวา",
+    "servingLabel": "1 ที่ตามสูตรอ้างอิง",
+    "source": "คู่มือตำรับอาหารมาตรฐานในโรงพยาบาล หน้า 120 · ข้าวผัดไก่และแตงกวา · ข้อมูลตารางที่ผู้ใช้ส่งใน Proposal.pdf หน้า 7",
+    "sourceUrl": "https://phdb.moph.go.th/ebook/20241017111344/index.html",
     "nutrition": {
-      "calories": null,
-      "carbs": null,
-      "sugar": null,
-      "protein": null,
-      "fat": null,
+      "calories": 473.94,
+      "carbs": 64.63,
+      "sugar": 6.25,
+      "protein": 37.46,
+      "fat": 7.29,
       "saturatedFat": null,
       "sodium": null,
-      "fiber": null
-    }
+      "fiber": 2.34
+    },
+    "referenceRecipe": "ข้าวผัดไก่และแตงกวา",
+    "sourcePage": 120,
+    "providedDocument": "Proposal.pdf",
+    "providedDocumentPage": 7
   },
   "Kaeng Chuet Phak Kat Khao": {
     "menu": "แกงจืดผักกาดขาว",
@@ -145,41 +153,49 @@
   },
   "Khao Tom Moo": {
     "menu": "ข้าวต้มหมูสับ",
-    "servingLabel": "1 จาน",
-    "source": null,
-    "sourceUrl": null,
+    "servingLabel": "1 ที่ตามสูตรอ้างอิง",
+    "source": "คู่มือตำรับอาหารมาตรฐานในโรงพยาบาล หน้า 64 · ข้าวต้มหมูสับ · ข้อมูลตารางที่ผู้ใช้ส่งใน Proposal.pdf หน้า 9",
+    "sourceUrl": "https://phdb.moph.go.th/ebook/20241017111344/index.html",
     "nutrition": {
-      "calories": null,
-      "carbs": null,
-      "sugar": null,
-      "protein": null,
-      "fat": null,
+      "calories": 332.84,
+      "carbs": 50.65,
+      "sugar": 0.32,
+      "protein": 11.72,
+      "fat": 9.26,
       "saturatedFat": null,
       "sodium": null,
-      "fiber": null
-    }
+      "fiber": 0.91
+    },
+    "referenceRecipe": "ข้าวต้มหมูสับ",
+    "sourcePage": 64,
+    "providedDocument": "Proposal.pdf",
+    "providedDocumentPage": 9
   },
   "NoodleSoup": {
     "menu": "ก๋วยเตี๋ยวน้ำใส",
-    "servingLabel": "1 จาน",
-    "source": null,
-    "sourceUrl": null,
+    "servingLabel": "1 ที่ตามสูตรอ้างอิง",
+    "source": "เมนู 7 วันสำหรับผู้สูงอายุ หน้า 21 · ก๋วยเตี๋ยวน้ำใส · ข้อมูลตารางที่ผู้ใช้ส่งใน Proposal.pdf หน้า 11",
+    "sourceUrl": "https://nutrition2.anamai.moph.go.th/web-upload/6x22caac0452648c8dd1f534819ba2f16c/202012/m_news/32219/194719/file_download/7c595fe5cc54ab55eb5604430b6c27d5.pdf",
     "nutrition": {
-      "calories": null,
-      "carbs": null,
-      "sugar": null,
-      "protein": null,
-      "fat": null,
+      "calories": 329,
+      "carbs": 38.09,
+      "sugar": 9.12,
+      "protein": 13.1,
+      "fat": 14.06,
       "saturatedFat": null,
       "sodium": null,
-      "fiber": null
-    }
+      "fiber": 1.25
+    },
+    "referenceRecipe": "ก๋วยเตี๋ยวน้ำใส",
+    "sourcePage": 21,
+    "providedDocument": "Proposal.pdf",
+    "providedDocumentPage": 11
   },
   "Omelet": {
-    "menu": "ข้าวไข่เจียว",
-    "servingLabel": "1 จาน",
-    "source": null,
-    "sourceUrl": null,
+    "menu": "ไข่เจียว",
+    "servingLabel": "1 ที่ตามสูตรอ้างอิง",
+    "source": "คู่มือตำรับอาหารมาตรฐานในโรงพยาบาล หน้า 89 และ 51 · ข้อมูลตารางที่ผู้ใช้ส่งใน Proposal.pdf หน้า 1–2",
+    "sourceUrl": "https://phdb.moph.go.th/ebook/20241017111344/index.html",
     "nutrition": {
       "calories": null,
       "carbs": null,
@@ -189,7 +205,57 @@
       "saturatedFat": null,
       "sodium": null,
       "fiber": null
-    }
+    },
+    "referenceRecipe": "เลือกสูตรไข่เจียว",
+    "sourcePage": null,
+    "providedDocument": "Proposal.pdf",
+    "providedDocumentPage": null,
+    "nutritionVariants": [
+      {
+        "menu": "ไข่เจียวไข่เป็ด",
+        "servingLabel": "1 ที่ตามสูตรอ้างอิง",
+        "source": "คู่มือตำรับอาหารมาตรฐานในโรงพยาบาล หน้า 89 · ไข่เจียวไข่เป็ด · ข้อมูลตารางที่ผู้ใช้ส่งใน Proposal.pdf หน้า 1",
+        "sourceUrl": "https://phdb.moph.go.th/ebook/20241017111344/index.html",
+        "nutrition": {
+          "calories": 305.38,
+          "carbs": 1.02,
+          "sugar": 0.62,
+          "protein": 10.61,
+          "fat": 28.76,
+          "saturatedFat": null,
+          "sodium": null,
+          "fiber": 0.07
+        },
+        "referenceRecipe": "ไข่เจียวไข่เป็ด",
+        "sourcePage": 89,
+        "providedDocument": "Proposal.pdf",
+        "providedDocumentPage": 1,
+        "id": "duck-egg",
+        "label": "ไข่เจียวไข่เป็ด"
+      },
+      {
+        "menu": "ไข่เจียวไข่ไก่",
+        "servingLabel": "1 ที่ตามสูตรอ้างอิง",
+        "source": "คู่มือตำรับอาหารมาตรฐานในโรงพยาบาล หน้า 51 · ไข่เจียวไข่ไก่ · ข้อมูลตารางที่ผู้ใช้ส่งใน Proposal.pdf หน้า 2",
+        "sourceUrl": "https://phdb.moph.go.th/ebook/20241017111344/index.html",
+        "nutrition": {
+          "calories": 264.77,
+          "carbs": 3.41,
+          "sugar": 1.92,
+          "protein": 12.55,
+          "fat": 22.33,
+          "saturatedFat": null,
+          "sodium": null,
+          "fiber": 0.77
+        },
+        "referenceRecipe": "ไข่เจียวไข่ไก่",
+        "sourcePage": 51,
+        "providedDocument": "Proposal.pdf",
+        "providedDocumentPage": 2,
+        "id": "chicken-egg",
+        "label": "ไข่เจียวไข่ไก่"
+      }
+    ]
   },
   "Pad Buab Sai Khai": {
     "menu": "ผัดบวบใส่ไข่",
@@ -224,20 +290,24 @@
     }
   },
   "Pad Kaprao": {
-    "menu": "ผัดกะเพรา",
-    "servingLabel": "1 จาน",
-    "source": null,
-    "sourceUrl": null,
+    "menu": "ข้าวกะเพราหมูสับไข่ดาว",
+    "servingLabel": "1 ที่ตามสูตรอ้างอิง",
+    "source": "คู่มือตำรับอาหารมาตรฐานในโรงพยาบาล หน้า 132 · ข้าวกะเพราหมูสับไข่ดาว · ข้อมูลตารางที่ผู้ใช้ส่งใน Proposal.pdf หน้า 3",
+    "sourceUrl": "https://phdb.moph.go.th/ebook/20241017111344/index.html",
     "nutrition": {
-      "calories": null,
-      "carbs": null,
-      "sugar": null,
-      "protein": null,
-      "fat": null,
+      "calories": 846.81,
+      "carbs": 78.23,
+      "sugar": 4.46,
+      "protein": 36.28,
+      "fat": 43.19,
       "saturatedFat": null,
       "sodium": null,
-      "fiber": null
-    }
+      "fiber": 7.12
+    },
+    "referenceRecipe": "ข้าวกะเพราหมูสับไข่ดาว",
+    "sourcePage": 132,
+    "providedDocument": "Proposal.pdf",
+    "providedDocumentPage": 3
   },
   "PadPhakKatKhao": {
     "menu": "ผัดผักกาดขาว",
@@ -272,20 +342,24 @@
     }
   },
   "PadSeeEw": {
-    "menu": "ผัดซีอิ๊ว",
-    "servingLabel": "1 จาน",
-    "source": null,
-    "sourceUrl": null,
+    "menu": "ก๋วยเตี๋ยวผัดซีอิ๊วหมู",
+    "servingLabel": "1 ที่ตามสูตรอ้างอิง",
+    "source": "คู่มือตำรับอาหารมาตรฐานในโรงพยาบาล หน้า 135 · ก๋วยเตี๋ยวผัดซีอิ๊วหมู · ข้อมูลตารางที่ผู้ใช้ส่งใน Proposal.pdf หน้า 5",
+    "sourceUrl": "https://phdb.moph.go.th/ebook/20241017111344/index.html",
     "nutrition": {
-      "calories": null,
-      "carbs": null,
-      "sugar": null,
-      "protein": null,
-      "fat": null,
+      "calories": 431.35,
+      "carbs": 45.91,
+      "sugar": 4.35,
+      "protein": 20.38,
+      "fat": 18.47,
       "saturatedFat": null,
       "sodium": null,
-      "fiber": null
-    }
+      "fiber": 2.47
+    },
+    "referenceRecipe": "ก๋วยเตี๋ยวผัดซีอิ๊วหมู",
+    "sourcePage": 135,
+    "providedDocument": "Proposal.pdf",
+    "providedDocumentPage": 5
   },
   "Pla Nueng Ma-nao": {
     "menu": "ปลานึ่งมะนาว",
@@ -401,19 +475,23 @@
   },
   "Tom Kha Gai": {
     "menu": "ต้มข่าไก่",
-    "servingLabel": "1 จาน",
-    "source": null,
-    "sourceUrl": null,
+    "servingLabel": "1 ที่ตามสูตรอ้างอิง",
+    "source": "คู่มือตำรับอาหารมาตรฐานในโรงพยาบาล หน้า 45 · ต้มข่าไก่ · ข้อมูลตารางที่ผู้ใช้ส่งใน Proposal.pdf หน้า 12",
+    "sourceUrl": "https://phdb.moph.go.th/ebook/20241017111344/index.html",
     "nutrition": {
-      "calories": null,
-      "carbs": null,
-      "sugar": null,
-      "protein": null,
-      "fat": null,
+      "calories": 176.91,
+      "carbs": 5.64,
+      "sugar": 0.61,
+      "protein": 30.96,
+      "fat": 3.39,
       "saturatedFat": null,
       "sodium": null,
-      "fiber": null
-    }
+      "fiber": 1.89
+    },
+    "referenceRecipe": "ต้มข่าไก่",
+    "sourcePage": 45,
+    "providedDocument": "Proposal.pdf",
+    "providedDocumentPage": 12
   },
   "TomJabChai": {
     "menu": "ต้มจับฉ่าย",

@@ -5,6 +5,7 @@ import { BottomNav, Button, Card, Field, Icon, IconName, Message, palette, Scree
 import { dayKey, useHealthData } from '@/hooks/use-health-data';
 import { CompletedMeal, deleteTodayMeal, restoreDeletedMeal } from '@/services/meal-storage';
 import { formatNutrient, DISPLAY_NUTRIENTS } from '@/utils/nutrition';
+import PendingMealNotice from '@/components/pending-meal-notice';
 
 export default function FoodLogScreen() {
   const router = useRouter();
@@ -50,6 +51,7 @@ export default function FoodLogScreen() {
     setDate(next); setDateOpen(false); setDateError('');
   };
   return <Screen bottom={<BottomNav active="food" />}>
+    <PendingMealNotice />
     <View style={ui.between}><View><Text style={ui.title}>บันทึกอาหาร</Text><Text style={ui.subtitle}>ติดตามมื้ออาหารและสารอาหาร</Text></View><TouchableOpacity onPress={() => { setDateInput(date.getDate() + '/' + (date.getMonth() + 1) + '/' + date.getFullYear()); setDateOpen(true); }} style={{ backgroundColor: '#F0F7F1', padding: 10, borderRadius: 18 }}><Text style={{ color: palette.green, fontSize: 11 }}>{date.toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit', year: '2-digit' })}</Text></TouchableOpacity></View>
     <View style={[ui.between, { marginTop: 18 }]}><Text style={ui.section}>{dayKey(date) === dayKey(new Date()) ? 'มื้ออาหารวันนี้' : 'มื้ออาหารที่บันทึก'}</Text><Text style={{ color: palette.green, fontSize: 12 }}>{meals.length} มื้อ</Text></View>
     {!!deletedId && <Card compact><Text style={ui.body}>ลบมื้ออาหารแล้ว</Text><TouchableOpacity accessibilityRole="button" disabled={changing} onPress={undoDelete} style={{ minHeight: 44, justifyContent: 'center' }}><Text style={ui.link}>{changing ? 'กำลังอัปเดต…' : 'เลิกทำการลบ'}</Text></TouchableOpacity></Card>}

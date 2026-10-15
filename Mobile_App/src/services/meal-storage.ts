@@ -1,14 +1,15 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Analysis, Nutrition, parseAnalysis, splitNutrition } from '@/utils/nutrition';
 
-export type PendingMeal = Analysis & { id: string; createdAt: string };
+export type PendingMeal = Analysis & { id: string; createdAt: string; startedAt?: string };
 export type CompletedMeal = PendingMeal & { leftoverPercent: number; eaten: Nutrition; remaining: Nutrition; completedAt: string; afterPhotoRecordedAt?: string; method?: 'photo' | 'manual' | 'empty' };
-async function storageKey(kind: string) {
+async function storageKey(kind: string, patientId?: string) {
   const email = await AsyncStorage.getItem('userEmail');
-  return `food:${email || 'guest'}:${kind}`;
+  const patient = patientId ?? await AsyncStorage.getItem(`profile:${email || 'guest'}:activePatient`);
+  return `food:${email || 'guest'}${patient ? `:patient:${patient}` : ''}:${kind}`;
 }
-export async function getMealHistory(): Promise<CompletedMeal[]> {
-  const raw = await AsyncStorage.getItem(await storageKey('history'));
+export async function getMealHistory(patientId?: string): Promise<CompletedMeal[]> {
+  const raw = await AsyncStorage.getItem(await storageKey('history', patientId));
   return raw ? JSON.parse(raw) : [];
 }
 
@@ -46,7 +47,7 @@ export async function getPendingMeal(): Promise<PendingMeal | null> {
   const data = JSON.parse(raw);
   const analysis = parseAnalysis(data);
   if (typeof data.id !== 'string' || typeof data.createdAt !== 'string') throw new Error('ข้อมูลมื้ออาหารที่บันทึกไว้ไม่ถูกต้อง');
-  return { ...analysis, id: data.id, createdAt: data.createdAt };
+  return { ...analysis, id: data.id, createdAt: data.createdAt, ...(typeof data.startedAt === 'string' ? { startedAt: data.startedAt } : {}) };
 }
 export async function savePendingMeal(meal: PendingMeal) {
   await AsyncStorage.setItem(await storageKey('pending'), JSON.stringify(meal));
@@ -57,5 +58,5 @@ export async function finishMeal(meal: PendingMeal, leftoverPercent: number, aft
   const entry = { ...meal, ...afterPhoto, leftoverPercent, ...splitNutrition(meal.nutrition, leftoverPercent), completedAt: new Date().toISOString() };
   // Retrying after a storage error must not duplicate a meal.
   await AsyncStorage.setItem(key, JSON.stringify([entry, ...history.filter((item: PendingMeal) => item.id !== meal.id)]));
-  await AsyncStorage.removeItem(await storageKey('pending'));
+  await AsyncStorage.removeItem(key.replace(/:history$/, ':pending'));
 }

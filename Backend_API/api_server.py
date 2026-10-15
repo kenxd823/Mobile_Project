@@ -9,6 +9,7 @@ import numpy as np
 from flask import Flask, jsonify, request
 from menu_reference import load_menu_reference
 from menu_predictor import MenuPredictor
+from spoon_bowl import measure_spoon_bowl
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 12 * 1024 * 1024
@@ -24,14 +25,21 @@ DB_CONFIG = {
 model_food = None
 model_spoon = None
 model_lock = Lock()
+SPOON_MODEL_PATH = BASE_DIR / 'yolo11s-seg.pt'
+COCO_SPOON_CLASS = 44
+SCALE_REFERENCE = 'coco-yolo11s-seg-bowl-pca-v1'
 
 
 def load_models():
     global model_food, model_spoon
-    if model_food is None or model_spoon is None:
-        from ultralytics import YOLO
+    from ultralytics import YOLO
+    if model_food is None:
         model_food = YOLO(str(BASE_DIR / 'best.pt'))
-        model_spoon = YOLO(str(BASE_DIR / 'best (10)spoon.pt'))
+    if model_spoon is None:
+        spoon = YOLO(str(SPOON_MODEL_PATH))
+        if spoon.names.get(COCO_SPOON_CLASS) != 'spoon' or spoon.task != 'segment':
+            raise RuntimeError('The scale model must be COCO segmentation with spoon at class 44')
+        model_spoon = spoon
 
 
 @app.after_request
@@ -57,7 +65,7 @@ def health():
     try:
         conn = mysql.connector.connect(**DB_CONFIG)
         conn.ping(reconnect=False)
-        return jsonify(status='success', service='food-analysis', database='connected', analysisVersion=2)
+        return jsonify(status='success', service='food-analysis', database='connected', analysisVersion=4, spoonModel='yolo11s-seg-coco-bowl')
     except mysql.connector.Error:
         return jsonify(status='error', service='food-analysis', message='เซิร์ฟเวอร์เปิดอยู่ แต่เชื่อมต่อฐานข้อมูลอาหารไม่ได้'), 503
     finally:
@@ -85,7 +93,7 @@ def analyze_food():
         with model_lock:
             load_models()
             results_food = model_food(img, conf=0.001 if mode == 'before' else 0.05, imgsz=960, predictor=MenuPredictor)[0]
-            results_spoon = model_spoon(img, conf=0.25)[0]
+            results_spoon = model_spoon(img, classes=[COCO_SPOON_CLASS], conf=0.15, imgsz=640, retina_masks=True, verbose=False)[0]
         detected_pixels = {}
         confidences = {}
         for box in results_food.boxes:
@@ -101,10 +109,7 @@ def analyze_food():
             if mode == 'after' and not detected_pixels:
                 return jsonify(status='success', menu=request.form.get('menu_class') or 'อาหารหลังกิน', nutrition={}, nutritionBasis='area-only', emptyCandidate=True, comparisonReady=False)
             return jsonify(status='empty', message='ยังจับเมนูไม่ได้ ลองถ่ายอาหารจริงจากด้านบน ให้จานอยู่กลางภาพ แสงสว่าง และถือกล้องนิ่ง หากกินหมดแล้วให้เลือกปรับเองเป็นเหลือ 0%')
-        spoon_pixels = 0.0
-        for box in results_spoon.boxes:
-            x1, y1, x2, y2 = box.xyxy[0].cpu().numpy()
-            spoon_pixels = max(spoon_pixels, float((x2 - x1) * (y2 - y1)))
+        spoon_pixels, spoon_width_px = measure_spoon_bowl(results_spoon, img.shape)
         # One reference serving of the detected menu, not a serving for every box.
         name = request.form.get('menu_class') if mode == 'after' else max(confidences, key=confidences.get)
         if not name or name not in detected_pixels:
@@ -117,12 +122,14 @@ def analyze_food():
             result['candidates'] = [
                 {**load_menu_reference(candidate), 'confidence': confidences[candidate],
                  'portions': [{'className': candidate, 'area': detected_pixels[candidate], 'relativeArea': detected_pixels[candidate] / spoon_pixels if spoon_pixels > 0 else None}],
-                 'comparisonReady': spoon_pixels > 0}
+                 'comparisonReady': spoon_pixels > 0, 'scaleReference': SCALE_REFERENCE}
                 for candidate in sorted(confidences, key=confidences.get, reverse=True)[:3]
             ]
         result.update(status='success',
                       portions=[{'className': name, 'area': detected_pixels[name], 'relativeArea': detected_pixels[name] / spoon_pixels if spoon_pixels > 0 else None}],
                       comparisonReady=spoon_pixels > 0,
+                      scaleReference=SCALE_REFERENCE,
+                      spoonBowlAreaPx=spoon_pixels, spoonBowlWidthPx=spoon_width_px,
                       areaMethod='detection-box',
                       missing_nutrients=[key for key, value in result['nutrition'].items() if value is None])
         return jsonify(**result)

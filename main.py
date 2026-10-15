@@ -9,7 +9,7 @@ import secrets
 import time
 from pathlib import Path
 from contextlib import closing
-from account_security import hash_password, check_password, init_accounts, create_session, session_email, revoke_session
+from account_security import hash_password, check_password, init_accounts, create_session, session_email, revoke_session, delete_authenticated_account
 
 DB_PATH = os.getenv('AUTH_DATABASE', str(Path(__file__).with_name('users.db')))
 
@@ -24,7 +24,7 @@ app.add_middleware(
 
 @app.get('/api/health')
 def health():
-    return {'status': 'success', 'service': 'account-api', 'authVersion': 1}
+    return {'status': 'success', 'service': 'account-api', 'authVersion': 2}
 
 # ==========================================
 # 1. ตั้งค่าและสร้างฐานข้อมูล SQLite
@@ -56,6 +56,9 @@ class EmailRequest(BaseModel):
 
 class LoginRequest(BaseModel):
     email: str
+    password: str
+
+class DeleteAccountRequest(BaseModel):
     password: str
 
 class VerifyRequest(BaseModel):
@@ -177,3 +180,15 @@ def logout(authorization: str | None = Header(default=None)):
     if authorization and authorization.startswith('Bearer '):
         revoke_session(DB_PATH, authorization[7:])
     return {'status': 'success'}
+
+
+@app.post('/api/delete-account')
+def delete_account(data: DeleteAccountRequest, authorization: str | None = Header(default=None)):
+    token = authorization[7:] if authorization and authorization.startswith('Bearer ') else ''
+    email, error = delete_authenticated_account(DB_PATH, token, data.password)
+    if error == 'session':
+        raise HTTPException(status_code=401, detail='กรุณาเข้าสู่ระบบใหม่ก่อนลบบัญชี')
+    if error == 'password':
+        raise HTTPException(status_code=403, detail='รหัสผ่านไม่ถูกต้อง บัญชียังไม่ได้ถูกลบ')
+    otp_storage.pop(email, None)
+    return {'status': 'success', 'message': 'ลบบัญชีแล้ว'}

@@ -3,8 +3,8 @@ const assert = require('node:assert/strict');
 const load = require('./load-module.cjs');
 const nutrition = load('src/utils/nutrition.ts');
 
-function harness({ pending = null, responses = [], picked = [], permissionGranted = true, canGoBack = true } = {}) {
-  const states = [], refs = [], saved = [], pendingWrites = [], uploads = [], imageUris = [], navigation = [];
+function harness({ pending = null, responses = [], picked = [], permissionGranted = true, canGoBack = true, reminderFailure = false } = {}) {
+  const states = [], refs = [], saved = [], pendingWrites = [], uploads = [], imageUris = [], navigation = [], reminderCalls = [];
   let stateIndex = 0, refIndex = 0, first = true, tree;
   const walk = (node) => !node || typeof node !== 'object' ? [] : [node, ...[].concat(node.props?.children || []).flat(Infinity).flatMap(walk)];
   const text = (node) => typeof node === 'string' || typeof node === 'number' ? String(node) : [].concat(node?.props?.children || []).flat(Infinity).map(text).join('');
@@ -23,6 +23,7 @@ function harness({ pending = null, responses = [], picked = [], permissionGrante
     '@/components/leftover-slider': { __esModule: true, default: 'LeftoverSlider' },
     '@/services/food-api': { analyzeFood: async (uri, options) => { imageUris.push(uri); uploads.push(options); const next = responses.shift(); if (next instanceof Error) throw next; return next; }, checkFoodApiConnection: async () => {} },
     '@/services/test-photo-picker': { ENABLE_TEST_PHOTO_LIBRARY: true, pickTestPhotoUri: async () => { const next = picked.shift(); if (next instanceof Error) throw next; return next ?? null; } },
+    '@/services/meal-reminders': { syncMealReminders: async request => { reminderCalls.push(request); if (reminderFailure) throw new Error('native scheduler unavailable'); return { supported: true, allowed: true, afterMeal: true }; } },
     '@/services/meal-storage': { getPendingMeal: async () => pending, savePendingMeal: async meal => pendingWrites.push(meal), finishMeal: async (meal, percent) => saved.push({ meal, percent }) },
     '@/utils/nutrition': nutrition,
   }, { Error }).default;
@@ -31,7 +32,7 @@ function harness({ pending = null, responses = [], picked = [], permissionGrante
   const button = label => nodes().find(node => node.type === 'TouchableOpacity' && text(node) === label);
   const press = async label => { const node = button(label); assert.ok(node, label); assert.ok(!node.props.disabled, `${label} should be enabled`); await node.props.onPress(); render(); };
   const readyCamera = () => { refs[0].current = { takePictureAsync: async () => ({ uri: 'file:///camera.jpg' }) }; nodes().find(node => node.type === 'CameraView').props.onCameraReady(); render(); };
-  return { render, nodes, text: () => text(tree), button, press, readyCamera, saved, pendingWrites, uploads, imageUris, navigation };
+  return { render, nodes, text: () => text(tree), button, press, readyCamera, saved, pendingWrites, uploads, imageUris, navigation, reminderCalls };
 }
 const analysis = grams => nutrition.parseAnalysis({ menu: 'ข้าว', nutrition: { calories: grams * 2 }, calibrated: true, comparisonReady: true, portions: [{ className: 'rice', grams, relativeArea: grams }] });
 const tick = async h => { await new Promise(resolve => setImmediate(resolve)); h.render(); };
@@ -71,6 +72,26 @@ const takeAfter = async h => {
   await h.press('ถ่ายและใช้ภาพหลังกิน');
 };
 
+test('omelet recipe choice is required and selected nutrients remain the baseline after eating', async () => {
+  const variants = [
+    { id: 'duck-egg', label: 'ไข่เจียวไข่เป็ด', source: 'provided table page 1', nutrition: { calories: 305.38, carbs: 1.02, sugar: 0.62, protein: 10.61, fat: 28.76, fiber: 0.07 } },
+    { id: 'chicken-egg', label: 'ไข่เจียวไข่ไก่', source: 'provided table page 2', nutrition: { calories: 264.77, carbs: 3.41, sugar: 1.92, protein: 12.55, fat: 22.33, fiber: 0.77 } },
+  ];
+  const result = nutrition.parseAnalysis({ ...pendingMeal(), menu: 'ไข่เจียว', nutrition: {}, nutritionVariants: variants });
+  const h = harness({ responses: [result] });
+  h.render(); await tick(h); h.readyCamera(); await h.press('ถ่ายรูปและวิเคราะห์อาหาร');
+  assert.equal(h.button('บันทึกก่อนกิน / เริ่มกิน').props.disabled, true);
+  h.nodes().find(node => node.props?.accessibilityLabel === 'ไข่เจียวไข่ไก่').props.onPress(); h.render();
+  await h.press('บันทึกก่อนกิน / เริ่มกิน');
+  assert.equal(h.pendingWrites[0].nutritionVariantId, 'chicken-egg');
+  assert.equal(h.pendingWrites[0].nutrition.fat, 22.33);
+  await takeAfter(h); await h.press('ปรับเปอร์เซ็นต์เอง');
+  h.nodes().find(node => node.type === 'LeftoverSlider').props.onChange(25); h.render();
+  await h.press('ยืนยันและบันทึกผลหลังกิน');
+  assert.equal(h.saved[0].meal.nutrition.calories, 264.77);
+  assert.equal(h.saved[0].meal.menu, 'ไข่เจียวไข่ไก่');
+});
+
 test('after photo is required and analysis is an explicit action preserving the original meal', async () => {
   const h = harness({ responses: [pendingMeal(), afterAnalysis()] });
   h.render(); await tick(h); h.readyCamera();
@@ -88,6 +109,17 @@ test('after photo is required and analysis is an explicit action preserving the 
   assert.equal(h.saved[0].meal.nutrition.calories, 400);
   assert.equal(h.uploads[1].mode, 'after');
   assert.equal(h.uploads[1].menuClass, 'rice');
+  assert.deepEqual(h.reminderCalls, [true, undefined]);
+  assert.ok(h.pendingWrites[0].startedAt);
+});
+
+test('a notification failure never discards the meal that was already started', async () => {
+  const h = harness({ responses: [pendingMeal()], reminderFailure: true });
+  h.render(); await tick(h); h.readyCamera();
+  await h.press('ถ่ายรูปและวิเคราะห์อาหาร'); await h.press('บันทึกก่อนกิน / เริ่มกิน');
+  assert.equal(h.pendingWrites.length, 1);
+  assert.ok(h.button('ถ่ายภาพหลังกิน'));
+  assert.match(h.text(), /บันทึกมื้อแล้ว แต่ตั้งแจ้งเตือนไม่สำเร็จ/);
 });
 
 test('failed automatic analysis retains the photo and permits manual adjustment', async () => {

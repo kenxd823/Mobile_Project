@@ -27,6 +27,6 @@ export function profileMetrics(profile: Measurements | null, today = new Date())
   const bmi = rawBmi !== null && Number.isFinite(rawBmi) ? rawBmi : null;
   const factor = age !== null && age >= 60 ? age > 80 ? 20 : 25 : null;
   const rawEnergy = factor !== null && weight !== null ? factor * weight : null;
-  const energy = rawEnergy !== null && Number.isFinite(rawEnergy) ? Math.round(rawEnergy) : null;
+  const energy = rawEnergy !== null && Number.isFinite(rawEnergy) && Math.round(rawEnergy) > 0 ? Math.round(rawEnergy) : null;
   return { age, weight, bmi, factor, energy };
 }

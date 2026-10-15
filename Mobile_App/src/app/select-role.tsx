@@ -17,8 +17,9 @@ export default function SelectRoleScreen() {
     setLoading(true);
     try {
       await AsyncStorage.setItem('userRole', role);
-      const profile = await getProfile(role);
-      router.replace(role === 'caregiver' ? profile ? '/caregiver-home' : '/caregiver-profile' : profile ? '/elderly-home' : '/elderly-profile');
+      if (role === 'elderly') { router.replace('/select-elderly'); return; }
+      const profile = await getProfile('caregiver');
+      router.replace(profile ? '/caregiver-home' : '/caregiver-profile');
     } catch { setError('โหลดข้อมูลไม่สำเร็จ กรุณาลองอีกครั้ง'); } finally { setLoading(false); }
   };
   return <Screen auth>

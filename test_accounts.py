@@ -124,6 +124,30 @@ class AccountTests(unittest.TestCase):
         with closing(sqlite3.connect(path)) as conn, conn:
             self.assertEqual(conn.execute('SELECT id, email, password_hash FROM users').fetchone(), (1, 'legacy@example.test', None))
 
+    def test_account_deletion_requires_session_and_correct_password(self):
+        data = self.register()
+        headers = {'Authorization': 'Bearer ' + data['token']}
+        self.assertEqual(self.client.post('/api/delete-account', json={'password': 'test-password'}).status_code, 401)
+        self.assertEqual(self.client.post('/api/delete-account', headers=headers, json={'password': 'wrong'}).status_code, 403)
+        self.assertEqual(self.client.get('/api/session', headers=headers).status_code, 200)
+        with closing(sqlite3.connect(self.path)) as conn, conn:
+            self.assertEqual(conn.execute('SELECT COUNT(*) FROM users').fetchone()[0], 1)
+
+    def test_delete_removes_only_authenticated_account_and_revokes_all_its_sessions(self):
+        first = self.register()
+        second_session = self.client.post('/api/login', json={'email': first['email'], 'password': 'test-password'}).json()
+        other = self.register('other@example.test')
+        response = self.client.post('/api/delete-account', headers={'Authorization': 'Bearer ' + first['token']}, json={'password': 'test-password', 'email': other['email']})
+        self.assertEqual(response.status_code, 200)
+        for token in [first['token'], second_session['token']]:
+            self.assertEqual(self.client.get('/api/session', headers={'Authorization': 'Bearer ' + token}).status_code, 401)
+        self.assertEqual(self.client.get('/api/session', headers={'Authorization': 'Bearer ' + other['token']}).status_code, 200)
+        self.assertEqual(self.client.post('/api/login', json={'email': first['email'], 'password': 'test-password'}).status_code, 401)
+        with closing(sqlite3.connect(self.path)) as conn, conn:
+            self.assertEqual(conn.execute('SELECT email FROM users').fetchall(), [('other@example.test',)])
+            self.assertEqual(conn.execute('SELECT COUNT(*) FROM sessions WHERE email = ?', (first['email'],)).fetchone()[0], 0)
+        self.register(first['email'])
+
 
 if __name__ == '__main__':
     unittest.main()

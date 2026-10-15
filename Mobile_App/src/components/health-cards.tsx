@@ -40,5 +40,5 @@ export function NutrientCard({ totals, goal }: { totals: Nutrition; goal: number
     { label: 'ไฟเบอร์ (Fiber)', value: totals.fiber, target: 25, text: formatNutrient(totals.fiber) + 'g / 25g', color: palette.orange },
     { label: 'พลังงาน (Energy)', value: totals.calories, target: goal, text: Math.round((totals.calories ?? 0) / goal * 100) + '%', color: '#2D8036' },
   ];
-  return <Card><Text style={ui.section}>สารอาหารวันนี้</Text>{rows.map((row) => <View key={row.label} style={{ gap: 7 }}><View style={ui.between}><Text style={[ui.body, { fontWeight: '600' }]}>{row.label}</Text><Text style={{ fontSize: 12, color: palette.ink }}>{row.text}</Text></View><Progress color={row.color} value={(row.value ?? 0) / row.target * 100} /></View>)}<Text style={[ui.subtitle, { fontSize: 11 }]}>เป้าหมายแสดงตามค่าตั้งต้นของแอป</Text></Card>;
+  return <Card><Text style={ui.section}>สารอาหารวันนี้</Text>{rows.map((row) => <View key={row.label} style={{ gap: 7 }}><View style={ui.between}><Text style={[ui.body, { fontWeight: '600' }]}>{row.label}</Text><Text style={{ fontSize: 12, color: palette.ink }}>{row.text}</Text></View><Progress color={row.color} value={(row.value ?? 0) / row.target * 100} /></View>)}<Text style={[ui.subtitle, { fontSize: 11 }]}>เป้าหมายโปรตีนและใยอาหารใช้ค่าตั้งต้นของแอป</Text></Card>;
 }

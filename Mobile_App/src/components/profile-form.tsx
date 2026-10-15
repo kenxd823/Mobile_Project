@@ -2,27 +2,50 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Text, TouchableOpacity, View } from 'react-native';
 import { Button, Field, Icon, Logo, Message, palette, Screen, Select, ui } from './design-system';
-import { emptyProfile, getProfile, Profile, saveProfile } from '@/services/profile-storage';
+import { emptyProfile, getPatients, getProfile, Profile, savePatient, saveProfile } from '@/services/profile-storage';
 import { ageFromDob } from '@/utils/profile-metrics';
 
 const conditions = ['เบาหวาน', 'ความดันโลหิตสูง', 'ไตเรื้อรัง', 'ไขมันในเลือดสูง', 'หัวใจ', 'ไม่มีโรคประจำตัว'];
-export default function ProfileForm({ caregiver = false }: { caregiver?: boolean }) {
+export default function ProfileForm({ caregiver = false, patient = false, patientId }: { caregiver?: boolean; patient?: boolean; patientId?: string }) {
   const router = useRouter();
   const [profile, setProfile] = useState<Profile>(emptyProfile);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
-  useEffect(() => { let active = true; getProfile(caregiver ? 'caregiver' : 'elderly').then((saved) => { if (active && saved) setProfile(saved); }).catch(() => { if (active) setMessage('โหลดข้อมูลเดิมไม่ได้'); }); return () => { active = false; }; }, [caregiver]);
+  const [restoring, setRestoring] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      if (patient) {
+        if (!patientId) return null;
+        const found = (await getPatients()).find(item => item.id === patientId);
+        if (!found) throw new Error('ไม่พบรายชื่อผู้สูงอายุ');
+        return { ...emptyProfile, ...found };
+      }
+      return getProfile(caregiver ? 'caregiver' : 'elderly');
+    })().then(saved => { if (active && saved) setProfile(saved); })
+      .catch(() => { if (active) { setMessage('โหลดข้อมูลเดิมไม่ได้ กรุณาเปิดหน้านี้ใหม่'); setLoadFailed(true); } })
+      .finally(() => { if (active) setRestoring(false); });
+    return () => { active = false; };
+  }, [caregiver, patient, patientId]);
   const set = (key: keyof Profile, value: string) => setProfile((old) => ({ ...old, [key]: value }));
   const toggle = (condition: string) => setProfile((old) => ({ ...old, diseases: condition === 'ไม่มีโรคประจำตัว' ? old.diseases.includes(condition) ? [] : [condition] : old.diseases.includes(condition) ? old.diseases.filter((item) => item !== condition) : [...old.diseases.filter((item) => item !== 'ไม่มีโรคประจำตัว'), condition] }));
   const save = async () => {
+    if (loading || restoring || loadFailed) return;
     if (!profile.firstName.trim() || !profile.lastName.trim() || !profile.phone.trim() || (caregiver ? !profile.relationship : !profile.gender)) { setMessage('กรุณากรอกชื่อ นามสกุล เบอร์โทรศัพท์ และ' + (caregiver ? 'ความสัมพันธ์' : 'เพศกำเนิด')); return; }
     if (!caregiver && [profile.weight, profile.height].some((value) => value && (!Number.isFinite(Number(value)) || Number(value) <= 0))) { setMessage('น้ำหนักและส่วนสูงต้องเป็นตัวเลขมากกว่า 0'); return; }
     if (profile.dob.trim() && ageFromDob(profile.dob) === null) { setMessage('กรุณากรอกวันเกิดที่ถูกต้องเป็น วัน/เดือน/ปี เช่น 15/06/2500 หรือ 15/06/1957'); return; }
     setLoading(true);
-    try { await saveProfile(profile, caregiver ? 'caregiver' : 'elderly'); router.replace(caregiver ? '/caregiver-home' : '/elderly-home'); }
+    try {
+      if (patient) await savePatient(profile, patientId);
+      else await saveProfile(profile, caregiver ? 'caregiver' : 'elderly');
+      router.replace(caregiver || patient ? '/caregiver-home' : '/elderly-home');
+    }
     catch { setMessage('บันทึกข้อมูลไม่สำเร็จ กรุณาลองอีกครั้ง'); } finally { setLoading(false); }
   };
-  return <Screen auth><Logo /><Text style={ui.authTitle}>กรอกข้อมูลส่วนตัว</Text>
+  return <Screen auth>
+    {patient && <TouchableOpacity accessibilityRole="button" onPress={() => router.replace('/caregiver-home')} style={{ alignSelf: 'flex-start', paddingVertical: 12 }}><Text style={ui.link}>← กลับหน้ารายชื่อ</Text></TouchableOpacity>}
+    <Logo /><Text style={ui.authTitle}>{patient ? patientId ? 'แก้ไขข้อมูลผู้สูงอายุ' : 'เพิ่มผู้สูงอายุในการดูแล' : 'กรอกข้อมูลส่วนตัว'}</Text>
     <View style={{ marginTop: 30 }}>
       <Field label="ชื่อ" placeholder="xxxxxxxxx" value={profile.firstName} onChangeText={(value) => set('firstName', value)} />
       <Field label="นามสกุล" placeholder="xxxxxxxxx" value={profile.lastName} onChangeText={(value) => set('lastName', value)} />
@@ -41,6 +64,6 @@ export default function ProfileForm({ caregiver = false }: { caregiver?: boolean
         </View>
       </>}
       <Message text={message} />
-    </View><View style={ui.spacer} /><Button title="ตกลง" onPress={save} loading={loading} />
+    </View><View style={ui.spacer} /><Button title={patient ? 'บันทึกรายชื่อ' : 'ตกลง'} onPress={save} loading={loading || restoring} disabled={loadFailed} />
   </Screen>;
 }

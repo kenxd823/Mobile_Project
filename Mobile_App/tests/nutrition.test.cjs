@@ -69,3 +69,14 @@ test('unmatched menus, missing scale, invalid weights, and larger after portions
   assert.throws(() => estimateLeftover(before, invalid), /ช้อนอันเดิม/);
   assert.throws(() => estimateLeftover(before, { menu: 'ข้าว', nutrition }), /ช้อนอันเดิม/);
 });
+
+test('COCO scale metadata survives parsing and older spoon baselines cannot be mixed with the new model', () => {
+  const legacy = parseAnalysis({ menu: 'ข้าว', nutrition, comparisonReady: true, portions: [{ className: 'rice', area: 200, relativeArea: 2 }] });
+  const before = parseAnalysis({ ...legacy, scaleReference: 'coco-yolo11s-spoon-box-v1' });
+  const after = parseAnalysis({ ...before, portions: [{ className: 'rice', area: 100, relativeArea: 1 }] });
+  assert.equal(before.scaleReference, 'coco-yolo11s-spoon-box-v1');
+  assert.equal(estimateLeftover(before, after), 50);
+  assert.throws(() => estimateLeftover(legacy, after), /วิธีเทียบขนาด/);
+  assert.throws(() => estimateLeftover(before, legacy), /วิธีเทียบขนาด/);
+  assert.throws(() => estimateLeftover(before, { ...after, scaleReference: 'coco-yolo11s-seg-bowl-pca-v1' }), /วิธีเทียบขนาด/);
+});

@@ -2,6 +2,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, View } from 'react-native';
 import { AuthProvider, useAuth } from '@/hooks/use-auth';
+import { useMealReminders } from '@/hooks/use-meal-reminders';
 
 export default function RootLayout() {
   return <AuthProvider><AppNavigation /></AuthProvider>;
@@ -9,12 +10,15 @@ export default function RootLayout() {
 
 function AppNavigation() {
   const { session, loading } = useAuth();
+  useMealReminders(session?.email, loading);
   if (loading) return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator /></View>;
   return (
     <><StatusBar style="dark" /><Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#FFFFFF' } }}>
       <Stack.Screen name="index" />
       <Stack.Protected guard={!!session}>
       <Stack.Screen name="select-role" />
+      <Stack.Screen name="select-elderly" />
+      <Stack.Screen name="caregiver-patient-profile" />
       <Stack.Screen name="elderly-home" />
       <Stack.Screen name="caregiver-home" />
       <Stack.Screen name="scanner" />

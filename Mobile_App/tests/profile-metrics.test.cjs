@@ -41,7 +41,7 @@ test('invalid or missing measurements cannot invent age, BMI, or calculated ener
   assert.equal(metrics.profileMetrics(null, today).energy, null);
 });
 
-test('automatic goal follows updated weight; manual goals remain scoped and can return to automatic', async () => {
+test('elderly goal always follows age and weight; younger users may set their goal without an elderly formula', async () => {
   const data = new Map([['userEmail', 'elderly@example.test']]);
   const storage = { getItem: async key => data.get(key) ?? null, setItem: async (key, value) => data.set(key, value), removeItem: async key => data.delete(key) };
   const api = load('src/services/profile-storage.ts', {
@@ -54,9 +54,12 @@ test('automatic goal follows updated weight; manual goals remain scoped and can 
   await api.saveProfile({ ...initial, weight: '65' });
   assert.equal(await api.getEnergyGoal(), 1300);
   await api.saveEnergyGoal(1600);
-  assert.equal(await api.getEnergyGoal(), 1600);
+  assert.equal(await api.getEnergyGoal(), 1300);
   await api.resetEnergyGoal();
   assert.equal(await api.getEnergyGoal(), 1300);
+  await api.saveProfile({ ...initial, dob: '01/01/2000' });
+  await api.saveEnergyGoal(1700);
+  assert.equal(await api.getEnergyGoal(), 1700);
   await storage.setItem('userEmail', 'other@example.test');
   assert.equal(await api.getEnergyGoal(), 1850);
 });

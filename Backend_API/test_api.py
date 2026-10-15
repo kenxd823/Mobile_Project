@@ -79,7 +79,19 @@ class ApiTests(unittest.TestCase):
         box.conf = [0.9]
         box.xyxy.__getitem__.return_value.cpu.return_value.numpy.return_value = np.array([0, 0, 10, 20])
         result.boxes = [box] if food else []
+        result.masks = None
         return MagicMock(return_value=[result])
+
+    def spoon_model(self):
+        model = self.model()
+        model.return_value[0].names = {42: 'fork', 44: 'spoon', 45: 'bowl'}
+        model.return_value[0].boxes[0].cls = [44]
+        mask = np.zeros((40, 80), dtype=np.uint8)
+        cv2.ellipse(mask, (16, 20), (10, 14), 0, 0, 360, 1, -1)
+        cv2.rectangle(mask, (24, 18), (70, 22), 1, -1)
+        model.return_value[0].masks = MagicMock()
+        model.return_value[0].masks.data.cpu.return_value.numpy.return_value = mask[None]
+        return model
 
     def test_missing_or_invalid_upload(self):
         self.assertEqual(self.client.post('/api/analyze').status_code, 400)
@@ -115,36 +127,59 @@ class ApiTests(unittest.TestCase):
 
     @patch('api_server.load_models')
     def test_spoon_is_only_a_scale_for_area_and_does_not_change_nutrition(self, _load):
-        food, spoon = self.model(), self.model()
+        food, spoon = self.model(), self.spoon_model()
         with patch.object(api_server, 'model_food', food), patch.object(api_server, 'model_spoon', spoon):
             response = self.upload().json
         self.assertTrue(response['comparisonReady'])
-        self.assertEqual(response['portions'][0]['relativeArea'], 1)
+        self.assertEqual(response['portions'][0]['relativeArea'], 200 / response['spoonBowlAreaPx'])
+        self.assertLess(response['spoonBowlAreaPx'], np.count_nonzero(spoon.return_value[0].masks.data.cpu().numpy()))
         self.assertEqual(response['nutrition']['calories'], 500)
         self.assertEqual(food.call_args.kwargs['imgsz'], 960)
+        self.assertEqual(spoon.call_args.kwargs['classes'], [44])
+        self.assertEqual(response['scaleReference'], 'coco-yolo11s-seg-bowl-pca-v1')
+        self.assertTrue(spoon.call_args.kwargs['retina_masks'])
+
+    @patch('api_server.load_models')
+    def test_other_coco_objects_cannot_be_used_as_the_spoon_scale(self, _load):
+        spoon = self.spoon_model()
+        fork = MagicMock()
+        fork.cls = [42]
+        fork.xyxy.__getitem__.return_value.cpu.return_value.numpy.return_value = np.array([0, 0, 1000, 1000])
+        spoon.return_value[0].boxes.append(fork)
+        masks = spoon.return_value[0].masks.data.cpu().numpy()
+        spoon.return_value[0].masks.data.cpu.return_value.numpy.return_value = np.concatenate([masks, np.ones_like(masks)])
+        with patch.object(api_server, 'model_food', self.model()), patch.object(api_server, 'model_spoon', spoon):
+            response = self.upload().json
+        self.assertEqual(response['portions'][0]['relativeArea'], 200 / response['spoonBowlAreaPx'])
+        spoon.return_value[0].boxes = [fork]
+        spoon.return_value[0].masks.data.cpu.return_value.numpy.return_value = np.ones_like(masks)
+        with patch.object(api_server, 'model_food', self.model()), patch.object(api_server, 'model_spoon', spoon):
+            response = self.upload().json
+        self.assertFalse(response['comparisonReady'])
+        self.assertIsNone(response['portions'][0]['relativeArea'])
 
     @patch('api_server.load_models')
     @patch('api_server.mysql.connector.connect', side_effect=mysql.connector.Error('offline'))
     def test_after_photo_does_not_lookup_new_nutrition_or_require_gram_database(self, connect, _load):
-        with patch.object(api_server, 'model_food', self.model()), patch.object(api_server, 'model_spoon', self.model()):
+        with patch.object(api_server, 'model_food', self.model()), patch.object(api_server, 'model_spoon', self.spoon_model()):
             response = self.upload(mode='after', menu_class='rice').json
         self.assertEqual(response['status'], 'success')
         self.assertEqual(response['nutritionBasis'], 'area-only')
         self.assertEqual(response['nutrition'], {})
-        self.assertEqual(response['portions'][0]['relativeArea'], 1)
+        self.assertEqual(response['portions'][0]['relativeArea'], 200 / response['spoonBowlAreaPx'])
         self.lookup.assert_not_called()
         connect.assert_not_called()
 
     @patch('api_server.load_models')
     def test_after_wrong_menu_requires_review_instead_of_overwriting_before(self, _load):
-        with patch.object(api_server, 'model_food', self.model()), patch.object(api_server, 'model_spoon', self.model()):
+        with patch.object(api_server, 'model_food', self.model()), patch.object(api_server, 'model_spoon', self.spoon_model()):
             self.assertEqual(self.upload(mode='after', menu_class='different_menu').json['status'], 'empty')
 
     @patch('api_server.load_models')
     def test_unfilled_reference_does_not_invent_nutrients_or_discard_detected_area(self, _load):
         self.reference['nutrition'] = {key: None for key in NUTRIENT_COLUMNS}
         self.reference['source'] = None
-        with patch.object(api_server, 'model_food', self.model()), patch.object(api_server, 'model_spoon', self.model()):
+        with patch.object(api_server, 'model_food', self.model()), patch.object(api_server, 'model_spoon', self.spoon_model()):
             response = self.upload().json
         self.assertEqual(response['status'], 'success')
         self.assertTrue(response['comparisonReady'])
