@@ -5,33 +5,45 @@ import { AuthProvider, useAuth } from '@/hooks/use-auth';
 import { useMealReminders } from '@/hooks/use-meal-reminders';
 
 export default function RootLayout() {
-  return <AuthProvider><AppNavigation /></AuthProvider>;
+  return (
+    <AuthProvider>
+      <AppNavigation />
+    </AuthProvider>
+  );
 }
 
 function AppNavigation() {
   const { session, loading } = useAuth();
   useMealReminders(session?.email, loading);
-  if (loading) return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator /></View>;
+  if (loading)
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator />
+      </View>
+    );
   return (
-    <><StatusBar style="dark" /><Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#FFFFFF' } }}>
-      <Stack.Screen name="index" />
-      <Stack.Protected guard={!!session}>
-      <Stack.Screen name="select-role" />
-      <Stack.Screen name="select-elderly" />
-      <Stack.Screen name="caregiver-patient-profile" />
-      <Stack.Screen name="elderly-home" />
-      <Stack.Screen name="caregiver-home" />
-      <Stack.Screen name="scanner" />
-      <Stack.Screen name="elderly-profile" />
-      <Stack.Screen name="caregiver-profile" />
-      <Stack.Screen name="dashboard" />
-      <Stack.Screen name="food-log" />
-      <Stack.Screen name="settings" />
-      </Stack.Protected>
-      <Stack.Protected guard={!session}>
-      <Stack.Screen name="auth/register" />
-      <Stack.Screen name="auth/verify-otp" />
-      </Stack.Protected>
-    </Stack></>
+    <>
+      <StatusBar style="dark" />
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#FFFFFF' } }}>
+        <Stack.Screen name="index" />
+        <Stack.Protected guard={!!session}>
+          <Stack.Screen name="select-role" />
+          <Stack.Screen name="select-elderly" />
+          <Stack.Screen name="caregiver-patient-profile" />
+          <Stack.Screen name="elderly-home" />
+          <Stack.Screen name="caregiver-home" />
+          <Stack.Screen name="scanner" />
+          <Stack.Screen name="elderly-profile" />
+          <Stack.Screen name="caregiver-profile" />
+          <Stack.Screen name="dashboard" />
+          <Stack.Screen name="food-log" />
+          <Stack.Screen name="settings" />
+        </Stack.Protected>
+        <Stack.Protected guard={!session}>
+          <Stack.Screen name="auth/register" />
+          <Stack.Screen name="auth/verify-otp" />
+        </Stack.Protected>
+      </Stack>
+    </>
   );
 }

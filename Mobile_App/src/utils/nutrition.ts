@@ -8,58 +8,187 @@ export const NUTRIENTS = [
   { key: 'sodium', label: 'โซเดียม', unit: 'มิลลิกรัม' },
   { key: 'fiber', label: 'ใยอาหาร', unit: 'กรัม' },
 ] as const;
-export const DISPLAY_NUTRIENTS = NUTRIENTS.filter(({ key }) => key !== 'saturatedFat' && key !== 'sodium');
+export const DISPLAY_NUTRIENTS = NUTRIENTS.filter(
+  ({ key }) => key !== 'saturatedFat' && key !== 'sodium',
+);
 export const PLATE_NUTRIENTS = DISPLAY_NUTRIENTS.filter(({ key }) => key !== 'calories');
-export type NutrientKey = typeof NUTRIENTS[number]['key'];
+export type NutrientKey = (typeof NUTRIENTS)[number]['key'];
 export type Nutrition = Record<NutrientKey, number | null>;
-export type NutritionVariant = { id: string; label: string; nutrition: Nutrition; servingLabel?: string; source: string; sourceUrl?: string | null };
-export type Portion = { className: string; grams?: number; area?: number; relativeArea?: number | null };
-export type Analysis = { menu: string; nutrition: Nutrition; portions?: Portion[]; calibrated?: boolean; comparisonReady?: boolean; scaleReference?: string; nutritionBasis?: 'fixed-serving' | 'area-only'; servingLabel?: string; source?: string | null; sourceUrl?: string | null; referenceClass?: string; candidates?: MenuCandidate[]; emptyCandidate?: boolean; nutritionVariants?: NutritionVariant[]; nutritionVariantId?: string };
+export type NutritionVariant = {
+  id: string;
+  label: string;
+  nutrition: Nutrition;
+  servingLabel?: string;
+  source: string;
+  sourceUrl?: string | null;
+};
+export type Portion = {
+  className: string;
+  grams?: number;
+  area?: number;
+  relativeArea?: number | null;
+};
+export type Analysis = {
+  menu: string;
+  nutrition: Nutrition;
+  portions?: Portion[];
+  calibrated?: boolean;
+  comparisonReady?: boolean;
+  scaleReference?: string;
+  nutritionBasis?: 'fixed-serving' | 'area-only';
+  servingLabel?: string;
+  source?: string | null;
+  sourceUrl?: string | null;
+  referenceClass?: string;
+  candidates?: MenuCandidate[];
+  emptyCandidate?: boolean;
+  nutritionVariants?: NutritionVariant[];
+  nutritionVariantId?: string;
+};
 export type MenuCandidate = Omit<Analysis, 'candidates'> & { confidence: number };
 
-export function parseAnalysis(value: unknown): Analysis {
-  if (!value || typeof value !== 'object') throw new Error('รูปแบบผลวิเคราะห์ไม่ถูกต้อง');
-  const data = value as Record<string, unknown>;
-  if (typeof data.menu !== 'string' || !data.menu.trim() || !data.nutrition || typeof data.nutrition !== 'object') {
-    throw new Error('เซิร์ฟเวอร์ส่งข้อมูลเมนูหรือสารอาหารไม่ครบ กรุณาลองใหม่');
-  }
-  const source = data.nutrition as Record<string, unknown>;
+// ค่าที่ไม่มีข้อมูลต้องเป็น null เพื่อไม่แสดงเป็นสารอาหาร 0 กรัม
+function readNutrition(source: Record<string, unknown>): Nutrition {
   const nutrition = {} as Nutrition;
   for (const { key } of NUTRIENTS) {
-    const n = source[key];
-    nutrition[key] = typeof n === 'number' && Number.isFinite(n) && n >= 0 ? n : null;
+    const value = source[key];
+    const valid = typeof value === 'number' && Number.isFinite(value) && value >= 0;
+    nutrition[key] = valid ? value : null;
   }
-  const nutritionBasis = data.nutritionBasis === 'fixed-serving' || data.nutritionBasis === 'area-only' ? data.nutritionBasis : undefined;
-  if (!nutritionBasis && NUTRIENTS.every(({ key }) => nutrition[key] === null)) throw new Error('ยังไม่มีข้อมูลโภชนาการของเมนูนี้');
-  const portions = Array.isArray(data.portions) && data.portions.length > 0 && data.portions.every((part) =>
-    part && typeof part.className === 'string' && part.className.length > 0 &&
-    ((typeof part.area === 'number' && Number.isFinite(part.area) && part.area > 0) || (typeof part.grams === 'number' && Number.isFinite(part.grams) && part.grams > 0)))
-    ? data.portions as Portion[] : undefined;
-  const comparisonReady = data.comparisonReady === true && !!portions && portions.every((part) => typeof part.relativeArea === 'number' && Number.isFinite(part.relativeArea) && part.relativeArea > 0);
-  const nutritionVariants: NutritionVariant[] = Array.isArray(data.nutritionVariants) ? data.nutritionVariants.flatMap((variant) => {
-    if (!variant || typeof variant.id !== 'string' || typeof variant.label !== 'string' || typeof variant.source !== 'string' || !variant.source.trim() || !variant.nutrition || typeof variant.nutrition !== 'object') return [];
-    const values = Object.fromEntries(NUTRIENTS.map(({ key }) => [key, typeof variant.nutrition[key] === 'number' && Number.isFinite(variant.nutrition[key]) && variant.nutrition[key] >= 0 ? variant.nutrition[key] : null])) as Nutrition;
-    return [{ id: variant.id, label: variant.label, source: variant.source, nutrition: values, servingLabel: typeof variant.servingLabel === 'string' ? variant.servingLabel : undefined, sourceUrl: typeof variant.sourceUrl === 'string' ? variant.sourceUrl : null }];
-  }) : [];
-  const candidates: MenuCandidate[] = Array.isArray(data.candidates) ? data.candidates.slice(0, 3).flatMap((candidate) => {
-    if (!candidate || typeof candidate.confidence !== 'number' || !Number.isFinite(candidate.confidence) || candidate.confidence < 0 || candidate.confidence > 1) return [];
-    try { return [{ ...parseAnalysis({ ...candidate, candidates: undefined }), confidence: candidate.confidence }]; } catch { return []; }
-  }) : [];
-  return { menu: data.menu, nutrition,
-    ...(nutritionVariants.length ? { nutritionVariants, ...(nutritionVariants.some(variant => variant.id === data.nutritionVariantId) ? { nutritionVariantId: data.nutritionVariantId as string } : {}) } : {}),
-    ...(typeof data.sourceUrl === 'string' ? { sourceUrl: data.sourceUrl } : {}),
-    ...(typeof data.scaleReference === 'string' ? { scaleReference: data.scaleReference } : {}),
-    ...(candidates.length ? { candidates } : {}), ...(data.emptyCandidate === true && nutritionBasis === 'area-only' ? { emptyCandidate: true } : {}),
-    ...(nutritionBasis ? { nutritionBasis, servingLabel: typeof data.servingLabel === 'string' ? data.servingLabel : undefined, source: typeof data.source === 'string' ? data.source : null, referenceClass: typeof data.referenceClass === 'string' ? data.referenceClass : undefined } : {}),
-    ...(portions ? { portions, calibrated: data.calibrated === true, comparisonReady } : {}) };
+  return nutrition;
+}
+
+function readPortions(value: unknown): Portion[] | undefined {
+  if (!Array.isArray(value) || value.length === 0) return undefined;
+  for (const part of value) {
+    if (!part || typeof part.className !== 'string' || part.className.length === 0) {
+      return undefined;
+    }
+    const hasArea = typeof part.area === 'number' && Number.isFinite(part.area) && part.area > 0;
+    const hasGrams =
+      typeof part.grams === 'number' && Number.isFinite(part.grams) && part.grams > 0;
+    if (!hasArea && !hasGrams) return undefined;
+  }
+  return value as Portion[];
+}
+
+// เช่น ไข่เจียวไข่ไก่และไข่เป็ด แต่ละสูตรต้องมีแหล่งอ้างอิงของตัวเอง
+function readNutritionVariants(value: unknown): NutritionVariant[] {
+  if (!Array.isArray(value)) return [];
+  const variants: NutritionVariant[] = [];
+  for (const variant of value) {
+    if (!variant || typeof variant.id !== 'string' || typeof variant.label !== 'string') continue;
+    if (typeof variant.source !== 'string' || !variant.source.trim()) continue;
+    if (!variant.nutrition || typeof variant.nutrition !== 'object') continue;
+    variants.push({
+      id: variant.id,
+      label: variant.label,
+      source: variant.source,
+      nutrition: readNutrition(variant.nutrition),
+      servingLabel: typeof variant.servingLabel === 'string' ? variant.servingLabel : undefined,
+      sourceUrl: typeof variant.sourceUrl === 'string' ? variant.sourceUrl : null,
+    });
+  }
+  return variants;
+}
+
+function readMenuCandidates(value: unknown): MenuCandidate[] {
+  if (!Array.isArray(value)) return [];
+  const candidates: MenuCandidate[] = [];
+  for (const candidate of value.slice(0, 3)) {
+    if (!candidate || typeof candidate.confidence !== 'number') continue;
+    if (
+      !Number.isFinite(candidate.confidence) ||
+      candidate.confidence < 0 ||
+      candidate.confidence > 1
+    )
+      continue;
+    try {
+      const analysis = parseAnalysis({ ...candidate, candidates: undefined });
+      candidates.push({ ...analysis, confidence: candidate.confidence });
+    } catch {
+      // ข้ามเมนูที่ข้อมูลไม่ครบ แต่ยังให้ผู้ใช้เลือกเมนูอื่นที่ถูกต้องได้
+    }
+  }
+  return candidates;
+}
+
+// ตรวจผลจากเซิร์ฟเวอร์และมื้อที่อ่านจากเครื่อง ก่อนนำไปแสดงหรือคำนวณ
+export function parseAnalysis(value: unknown): Analysis {
+  if (!value || typeof value !== 'object') {
+    throw new Error('รูปแบบผลวิเคราะห์ไม่ถูกต้อง');
+  }
+  const data = value as Record<string, unknown>;
+  if (
+    typeof data.menu !== 'string' ||
+    !data.menu.trim() ||
+    !data.nutrition ||
+    typeof data.nutrition !== 'object'
+  ) {
+    throw new Error('เซิร์ฟเวอร์ส่งข้อมูลเมนูหรือสารอาหารไม่ครบ กรุณาลองใหม่');
+  }
+
+  const nutrition = readNutrition(data.nutrition as Record<string, unknown>);
+  const nutritionBasis =
+    data.nutritionBasis === 'fixed-serving' || data.nutritionBasis === 'area-only'
+      ? data.nutritionBasis
+      : undefined;
+  if (!nutritionBasis && NUTRIENTS.every(({ key }) => nutrition[key] === null)) {
+    throw new Error('ยังไม่มีข้อมูลโภชนาการของเมนูนี้');
+  }
+
+  const result: Analysis = { menu: data.menu, nutrition };
+  const variants = readNutritionVariants(data.nutritionVariants);
+  if (variants.length > 0) {
+    result.nutritionVariants = variants;
+    const selectedVariant = variants.find((variant) => variant.id === data.nutritionVariantId);
+    if (selectedVariant) result.nutritionVariantId = selectedVariant.id;
+  }
+
+  const candidates = readMenuCandidates(data.candidates);
+  if (candidates.length > 0) result.candidates = candidates;
+  if (typeof data.sourceUrl === 'string') result.sourceUrl = data.sourceUrl;
+  if (typeof data.scaleReference === 'string') result.scaleReference = data.scaleReference;
+  if (data.emptyCandidate === true && nutritionBasis === 'area-only') result.emptyCandidate = true;
+  if (nutritionBasis) {
+    result.nutritionBasis = nutritionBasis;
+    result.servingLabel = typeof data.servingLabel === 'string' ? data.servingLabel : undefined;
+    result.source = typeof data.source === 'string' ? data.source : null;
+    result.referenceClass =
+      typeof data.referenceClass === 'string' ? data.referenceClass : undefined;
+  }
+
+  const portions = readPortions(data.portions);
+  if (portions) {
+    result.portions = portions;
+    result.calibrated = data.calibrated === true;
+    result.comparisonReady =
+      data.comparisonReady === true &&
+      portions.every(
+        (part) =>
+          typeof part.relativeArea === 'number' &&
+          Number.isFinite(part.relativeArea) &&
+          part.relativeArea > 0,
+      );
+  }
+  return result;
 }
 
 export function estimateLeftover(before: Analysis, after: Analysis) {
   if (before.scaleReference !== after.scaleReference) {
-    throw new Error('วิธีเทียบขนาดของภาพก่อนและหลังกินไม่ตรงกัน กรุณาเลือกปรับเปอร์เซ็นต์เอง หรือเริ่มถ่ายมื้อใหม่');
+    throw new Error(
+      'วิธีเทียบขนาดของภาพก่อนและหลังกินไม่ตรงกัน กรุณาเลือกปรับเปอร์เซ็นต์เอง หรือเริ่มถ่ายมื้อใหม่',
+    );
   }
-  if (!before.comparisonReady || !after.comparisonReady || !before.portions?.length || !after.portions?.length) {
-    throw new Error('เปรียบเทียบปริมาณไม่ได้ ต้องเห็นช้อนอันเดิมชัดเจนทั้งก่อนและหลังกิน กรุณาถ่ายใหม่หรือเลือกปรับเอง');
+  if (
+    !before.comparisonReady ||
+    !after.comparisonReady ||
+    !before.portions?.length ||
+    !after.portions?.length
+  ) {
+    throw new Error(
+      'เปรียบเทียบปริมาณไม่ได้ ต้องเห็นช้อนอันเดิมชัดเจนทั้งก่อนและหลังกิน กรุณาถ่ายใหม่หรือเลือกปรับเอง',
+    );
   }
   const initial = new Map(before.portions.map((part) => [part.className, part.relativeArea!]));
   if (after.portions.some((part) => !initial.has(part.className))) {
@@ -69,22 +198,29 @@ export function estimateLeftover(before: Analysis, after: Analysis) {
     throw new Error('ปริมาณหลังกินมากกว่าก่อนกิน กรุณาถ่ายด้วยมุมและช้อนอันเดิม หรือเลือกปรับเอง');
   }
   const total = before.portions.reduce((sum, part) => sum + part.relativeArea!, 0);
-  const remaining = after.portions.reduce((sum, part) => sum + Math.min(part.relativeArea!, initial.get(part.className)!), 0);
-  return Math.max(0, Math.min(100, Math.round(remaining / total * 100)));
+  const remaining = after.portions.reduce(
+    (sum, part) => sum + Math.min(part.relativeArea!, initial.get(part.className)!),
+    0,
+  );
+  return Math.max(0, Math.min(100, Math.round((remaining / total) * 100)));
 }
 
 export function splitNutrition(nutrition: Nutrition, leftoverPercent: number) {
-  const percent = Number.isFinite(leftoverPercent) ? Math.max(0, Math.min(100, leftoverPercent)) : 100;
+  const percent = Number.isFinite(leftoverPercent)
+    ? Math.max(0, Math.min(100, leftoverPercent))
+    : 100;
   const eaten = {} as Nutrition;
   const remaining = {} as Nutrition;
   for (const { key } of NUTRIENTS) {
     const value = nutrition[key];
-    remaining[key] = value === null ? null : value * percent / 100;
-    eaten[key] = value === null ? null : value * (100 - percent) / 100;
+    remaining[key] = value === null ? null : (value * percent) / 100;
+    eaten[key] = value === null ? null : (value * (100 - percent)) / 100;
   }
   return { eaten, remaining };
 }
 
 export function formatNutrient(value: number | null) {
-  return value === null ? 'ไม่มีข้อมูล' : value.toLocaleString('th-TH', { maximumFractionDigits: 2 });
+  return value === null
+    ? 'ไม่มีข้อมูล'
+    : value.toLocaleString('th-TH', { maximumFractionDigits: 2 });
 }
