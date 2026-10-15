@@ -1,3 +1,7 @@
 __pycache__/
 *.py[cod]
 .logs/
+node_modules/
+.venv/
+.venv-test/
+.expo/
