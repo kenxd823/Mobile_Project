@@ -7,6 +7,12 @@ from nutrition import NUTRIENT_COLUMNS
 REFERENCE_PATH = Path(__file__).resolve().parent / 'menu_nutrition.json'
 
 
+def load_menu_label(class_name):
+    """อ่านเฉพาะชื่อแสดงผล ไม่ใช้ค่าโภชนาการใหม่กับภาพหลังกิน"""
+    catalog = json.loads(REFERENCE_PATH.read_text(encoding='utf-8'))
+    return catalog.get(class_name, {}).get('menu', class_name)
+
+
 def load_menu_reference(class_name):
     catalog = json.loads(REFERENCE_PATH.read_text(encoding='utf-8'))
     row = catalog.get(class_name, {})

@@ -176,6 +176,35 @@ class ApiTests(unittest.TestCase):
             self.assertEqual(self.upload(mode='after', menu_class='different_menu').json['status'], 'empty')
 
     @patch('api_server.load_models')
+    def test_after_misclassified_egg_offers_area_confirmation_with_original_menu(self, _load):
+        food = self.model()
+        food.return_value[0].names = {0: 'khai tom', 1: 'Omelet'}
+        with patch.object(api_server, 'model_food', food), patch.object(api_server, 'model_spoon', self.spoon_model()):
+            response = self.upload(mode='after', menu_class='Omelet').json
+        self.assertEqual(response['status'], 'success')
+        self.assertTrue(response['needsMenuConfirmation'])
+        self.assertEqual(response['referenceClass'], 'Omelet')
+        self.assertNotIn('portions', response)
+        self.assertNotIn('leftoverPercent', response)
+        candidate = response['candidates'][0]
+        self.assertEqual(candidate['detectedMenu'], load_menu_reference('khai tom')['menu'])
+        self.assertEqual(candidate['portions'][0]['className'], 'Omelet')
+        self.assertEqual(candidate['portions'][0]['area'], 200)
+        self.assertTrue(candidate['comparisonReady'])
+        self.assertEqual(candidate['nutrition'], {})
+        self.lookup.assert_not_called()
+
+    @patch('api_server.load_models')
+    def test_after_menu_confirmation_does_not_invent_a_missing_spoon_reference(self, _load):
+        food = self.model()
+        food.return_value[0].names = {0: 'khai tom', 1: 'Omelet'}
+        with patch.object(api_server, 'model_food', food), patch.object(api_server, 'model_spoon', self.model(False)):
+            response = self.upload(mode='after', menu_class='Omelet').json
+        self.assertTrue(response['needsMenuConfirmation'])
+        self.assertFalse(response['candidates'][0]['comparisonReady'])
+        self.assertIsNone(response['candidates'][0]['portions'][0]['relativeArea'])
+
+    @patch('api_server.load_models')
     def test_unfilled_reference_does_not_invent_nutrients_or_discard_detected_area(self, _load):
         self.reference['nutrition'] = {key: None for key in NUTRIENT_COLUMNS}
         self.reference['source'] = None
@@ -194,9 +223,9 @@ class ApiTests(unittest.TestCase):
     def test_top_three_are_distinct_real_scores_in_descending_order(self, _load):
         food = self.model()
         result = food.return_value[0]
-        result.names = {0: 'rice', 1: 'fish', 2: 'soup', 3: 'egg'}
+        result.names = {0: 'rice', 1: 'fish', 2: 'soup', 3: 'egg', 4: 'low-score'}
         result.boxes = []
-        for index, score in [(0, 0.6), (1, 0.9), (2, 0.4), (3, 0.1), (1, 0.5)]:
+        for index, score in [(0, 0.6), (1, 0.9), (2, 0.4), (3, 0.3), (1, 0.5), (4, 0.1)]:
             box = MagicMock()
             box.cls, box.conf = [index], [score]
             box.xyxy.__getitem__.return_value.cpu.return_value.numpy.return_value = np.array([0, 0, 10, 20])
@@ -206,6 +235,10 @@ class ApiTests(unittest.TestCase):
         self.assertEqual([item['referenceClass'] for item in response['candidates']], ['fish', 'rice', 'soup'])
         self.assertEqual([item['confidence'] for item in response['candidates']], [0.9, 0.6, 0.4])
         self.assertEqual(response['referenceClass'], 'fish')
+        # Recognized foods are not limited to the three main-menu alternatives.
+        self.assertEqual([item['className'] for item in response['detectedFoods']], ['fish', 'rice', 'soup', 'egg'])
+        self.assertEqual([item['confidence'] for item in response['detectedFoods']], [0.9, 0.6, 0.4, 0.3])
+        self.assertEqual(response['nutrition']['calories'], 500)
 
     @patch('api_server.load_models')
     def test_after_no_food_needs_confirmation_not_automatic_empty_plate(self, _load):

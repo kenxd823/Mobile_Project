@@ -12,6 +12,17 @@ export const DISPLAY_NUTRIENTS = NUTRIENTS.filter(
   ({ key }) => key !== 'saturatedFat' && key !== 'sodium',
 );
 export const PLATE_NUTRIENTS = DISPLAY_NUTRIENTS.filter(({ key }) => key !== 'calories');
+export const DAILY_NUTRIENT_TARGETS = { protein: 60, fiber: 25 };
+// ปิดส่วนหมู่อาหารชั่วคราว ทั้งการแนะนำ หน้าจอ และการติดตามหลายวัน
+export const ENABLE_FOOD_GROUP_TRACKING = false;
+export const FOOD_GROUPS = [
+  { key: 'starch', label: 'ข้าว / แป้ง' },
+  { key: 'protein', label: 'เนื้อสัตว์ / ไข่ / นม / ถั่ว' },
+  { key: 'vegetables', label: 'ผัก' },
+  { key: 'fruit', label: 'ผลไม้' },
+  { key: 'fat', label: 'น้ำมัน / ไขมัน' },
+] as const;
+export type FoodGroup = (typeof FOOD_GROUPS)[number]['key'];
 export type NutrientKey = (typeof NUTRIENTS)[number]['key'];
 export type Nutrition = Record<NutrientKey, number | null>;
 export type NutritionVariant = {
@@ -28,6 +39,11 @@ export type Portion = {
   area?: number;
   relativeArea?: number | null;
 };
+export type DetectedFood = {
+  className: string;
+  label: string;
+  confidence: number;
+};
 export type Analysis = {
   menu: string;
   nutrition: Nutrition;
@@ -41,6 +57,11 @@ export type Analysis = {
   sourceUrl?: string | null;
   referenceClass?: string;
   candidates?: MenuCandidate[];
+  detectedFoods?: DetectedFood[];
+  needsMenuConfirmation?: boolean;
+  detectedMenu?: string;
+  foodGroups?: FoodGroup[];
+  foodGroupsConfirmed?: boolean;
   emptyCandidate?: boolean;
   nutritionVariants?: NutritionVariant[];
   nutritionVariantId?: string;
@@ -113,6 +134,20 @@ function readMenuCandidates(value: unknown): MenuCandidate[] {
   return candidates;
 }
 
+function readDetectedFoods(value: unknown): DetectedFood[] {
+  if (!Array.isArray(value)) return [];
+  const foods: DetectedFood[] = [];
+  for (const food of value) {
+    if (!food || typeof food.className !== 'string' || !food.className.trim()) continue;
+    if (typeof food.label !== 'string' || !food.label.trim()) continue;
+    if (typeof food.confidence !== 'number' || !Number.isFinite(food.confidence)) continue;
+    if (food.confidence < 0 || food.confidence > 1) continue;
+    if (foods.some((item) => item.className === food.className)) continue;
+    foods.push({ className: food.className, label: food.label, confidence: food.confidence });
+  }
+  return foods;
+}
+
 // ตรวจผลจากเซิร์ฟเวอร์และมื้อที่อ่านจากเครื่อง ก่อนนำไปแสดงหรือคำนวณ
 export function parseAnalysis(value: unknown): Analysis {
   if (!value || typeof value !== 'object') {
@@ -138,6 +173,18 @@ export function parseAnalysis(value: unknown): Analysis {
   }
 
   const result: Analysis = { menu: data.menu, nutrition };
+  // ใช้เฉพาะหมู่อาหารที่ผู้ใช้ระบุ ไม่เดาจากชื่อเมนูของโมเดล
+  if (
+    Array.isArray(data.foodGroups) &&
+    data.foodGroups.every((group) => FOOD_GROUPS.some((item) => item.key === group))
+  ) {
+    result.foodGroups = [...new Set(data.foodGroups)] as FoodGroup[];
+    if (data.foodGroupsConfirmed === true && result.foodGroups.length > 0) {
+      result.foodGroupsConfirmed = true;
+    }
+  }
+  const detectedFoods = readDetectedFoods(data.detectedFoods);
+  if (detectedFoods.length > 0) result.detectedFoods = detectedFoods;
   const variants = readNutritionVariants(data.nutritionVariants);
   if (variants.length > 0) {
     result.nutritionVariants = variants;
@@ -147,6 +194,10 @@ export function parseAnalysis(value: unknown): Analysis {
 
   const candidates = readMenuCandidates(data.candidates);
   if (candidates.length > 0) result.candidates = candidates;
+  if (nutritionBasis === 'area-only' && data.needsMenuConfirmation === true) {
+    result.needsMenuConfirmation = true;
+  }
+  if (typeof data.detectedMenu === 'string') result.detectedMenu = data.detectedMenu;
   if (typeof data.sourceUrl === 'string') result.sourceUrl = data.sourceUrl;
   if (typeof data.scaleReference === 'string') result.scaleReference = data.scaleReference;
   if (data.emptyCandidate === true && nutritionBasis === 'area-only') result.emptyCandidate = true;

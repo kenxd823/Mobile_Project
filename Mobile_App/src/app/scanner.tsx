@@ -18,8 +18,12 @@ import { analyzeFood, checkFoodApiConnection } from '@/services/food-api';
 import { finishMeal, getPendingMeal, PendingMeal, savePendingMeal } from '@/services/meal-storage';
 import { ENABLE_TEST_PHOTO_LIBRARY, pickTestPhotoUri } from '@/services/test-photo-picker';
 import { syncMealReminders } from '@/services/meal-reminders';
+import { suggestFoodGroups } from '@/utils/food-group-suggestions';
 import {
   estimateLeftover,
+  ENABLE_FOOD_GROUP_TRACKING,
+  FOOD_GROUPS,
+  FoodGroup,
   formatNutrient,
   MenuCandidate,
   NutritionVariant,
@@ -41,6 +45,7 @@ export default function ScannerScreen() {
   const [menuConfirmed, setMenuConfirmed] = useState(false);
   const [emptyHint, setEmptyHint] = useState(false);
   const [photoEstimate, setPhotoEstimate] = useState<number | null>(null);
+  const [afterCandidates, setAfterCandidates] = useState<MenuCandidate[]>([]);
   const [meal, setMeal] = useState<PendingMeal | null>(null);
   const [stage, setStage] = useState<'before' | 'after' | 'saved'>('before');
   const [leftover, setLeftover] = useState(100);
@@ -50,6 +55,7 @@ export default function ScannerScreen() {
   const [picking, setPicking] = useState(false);
   const [gallerySelected, setGallerySelected] = useState(false);
   const [reminderMessage, setReminderMessage] = useState('');
+  const [foodGroupsEdited, setFoodGroupsEdited] = useState(false);
   const cameraRef = useRef<CameraView>(null);
   const busy = useRef(false);
   const mounted = useRef(true);
@@ -145,10 +151,15 @@ export default function ScannerScreen() {
       if (mounted.current) {
         setMeal({
           ...analysis,
+          ...(ENABLE_FOOD_GROUP_TRACKING ? {
+            foodGroups: suggestFoodGroups(analysis),
+            foodGroupsConfirmed: false,
+          } : {}),
           id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
           createdAt: new Date().toISOString(),
         });
         setMenuConfirmed(false);
+        setFoodGroupsEdited(false);
       }
     } catch (err) {
       if (mounted.current) setError(err instanceof Error ? err.message : 'วิเคราะห์อาหารไม่สำเร็จ');
@@ -167,11 +178,21 @@ export default function ScannerScreen() {
     // Clear previous results so a failed retry cannot save an obsolete estimate.
     setAfterMethod(null);
     setPhotoEstimate(null);
+    setAfterCandidates([]);
     try {
       const analysis = await analyzeFood(afterPhotoUri, {
         mode: 'after',
         menuClass: meal.referenceClass ?? meal.portions?.[0]?.className,
       });
+      if (analysis.needsMenuConfirmation) {
+        if (mounted.current) {
+          setAfterCandidates(analysis.candidates ?? []);
+          if (!analysis.candidates?.length) {
+            setError('ยังไม่มีพื้นที่อาหารที่ใช้เทียบได้ กรุณาถ่ายใหม่หรือปรับเปอร์เซ็นต์เอง');
+          }
+        }
+        return;
+      }
       if (analysis.emptyCandidate) {
         if (mounted.current) setEmptyHint(true);
         return;
@@ -193,15 +214,35 @@ export default function ScannerScreen() {
     }
   };
 
+  // ยึดเมนูและโภชนาการก่อนกิน เปลี่ยนเฉพาะพื้นที่เมื่อผู้ใช้ยืนยันอาหารเดิม
+  const confirmAfterMatch = (candidate: MenuCandidate) => {
+    if (!meal || working) return;
+    try {
+      const percent = estimateLeftover(meal, candidate);
+      setLeftover(percent);
+      setPhotoEstimate(percent);
+      setAfterMethod('photo');
+      setAfterCandidates([]);
+      setError('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'เทียบพื้นที่ไม่ได้ กรุณาปรับเปอร์เซ็นต์เอง');
+    }
+  };
+
   const chooseMenu = (candidate: MenuCandidate) => {
     if (!meal || working) return;
-    setMeal({
+    const selectedMeal = {
       ...meal,
       ...candidate,
       nutritionVariants: candidate.nutritionVariants,
       nutritionVariantId: undefined,
       candidates: meal.candidates,
-    });
+    };
+    if (ENABLE_FOOD_GROUP_TRACKING) {
+      selectedMeal.foodGroups = foodGroupsEdited ? meal.foodGroups : suggestFoodGroups(selectedMeal);
+      selectedMeal.foodGroupsConfirmed = false;
+    }
+    setMeal(selectedMeal);
     setMenuConfirmed(true);
     setError('');
   };
@@ -217,6 +258,16 @@ export default function ScannerScreen() {
       sourceUrl: variant.sourceUrl,
     });
     setError('');
+  };
+
+  const toggleFoodGroup = (group: FoodGroup) => {
+    if (!meal || working) return;
+    const groups = meal.foodGroups ?? [];
+    const next = groups.includes(group)
+      ? groups.filter((item) => item !== group)
+      : [...groups, group];
+    setMeal({ ...meal, foodGroups: next, foodGroupsConfirmed: false });
+    setFoodGroupsEdited(true);
   };
 
   // Temporary gallery entry point; analysis still runs through handleCapture.
@@ -324,6 +375,7 @@ export default function ScannerScreen() {
     }
   };
   const retake = () => {
+    setAfterCandidates([]);
     setReady(false);
     setError('');
     setConnection('');
@@ -334,6 +386,7 @@ export default function ScannerScreen() {
       return;
     }
     setMeal(null);
+    setFoodGroupsEdited(false);
     setPhotoUri(null);
     setAfterPhotoUri(null);
     setAfterMethod(null);
@@ -349,6 +402,7 @@ export default function ScannerScreen() {
       return;
     }
     setAfterMethod('manual');
+    setAfterCandidates([]);
     setCapturingAfter(false);
     setError('');
     setConnection('');
@@ -357,6 +411,7 @@ export default function ScannerScreen() {
   const markEmpty = () => {
     if (afterPhotoUri && !working) {
       setAfterMethod('empty');
+      setAfterCandidates([]);
       setLeftover(0);
       setPhotoEstimate(0);
       setEmptyHint(false);
@@ -366,6 +421,7 @@ export default function ScannerScreen() {
   const startAfterPhoto = () => {
     if (working) return;
     setAfterMethod('photo');
+    setAfterCandidates([]);
     setAfterPhotoUri(null);
     setPhotoEstimate(null);
     setCapturingAfter(true);
@@ -437,10 +493,23 @@ export default function ScannerScreen() {
                 style={styles.preview}
               />
               {after && !afterPhotoUri && (
-                <Text style={styles.note}>
-                  ภาพนี้เป็นภาพก่อนกิน ยังไม่ได้ถ่ายภาพหลังกิน
-                </Text>
+                <Text style={styles.note}>ภาพนี้เป็นภาพก่อนกิน ยังไม่ได้ถ่ายภาพหลังกิน</Text>
               )}
+            </View>
+          )}
+          {!!meal.detectedFoods?.length && (
+            <View style={styles.card}>
+              <Text style={styles.sectionTitle}>อาหารที่ตรวจพบในภาพก่อนกิน</Text>
+              {meal.detectedFoods.map((food) => (
+                <View key={food.className} style={styles.row}>
+                  <Text style={[styles.label, { flex: 1 }]}>{food.label}</Text>
+                  <Text style={styles.caption}>{(food.confidence * 100).toFixed(0)}%</Text>
+                </View>
+              ))}
+              <Text style={styles.note}>
+                คะแนนความมั่นใจของโมเดล กรุณาตรวจว่าอาหารตรงกับภาพจริง
+                ค่าโภชนาการใช้เมนูหรือสูตรที่ผู้ใช้เลือก
+              </Text>
             </View>
           )}
           {stage === 'before' && !!meal.candidates?.length && (
@@ -479,7 +548,7 @@ export default function ScannerScreen() {
             </View>
           )}
           <View style={styles.card}>
-            <Text style={styles.caption}>เมนูที่ตรวจพบ</Text>
+            <Text style={styles.caption}>เมนูที่ใช้คำนวณสารอาหาร</Text>
             <Text style={styles.menu}>{meal.menu}</Text>
             <Text style={styles.note}>
               {meal.comparisonReady
@@ -537,6 +606,41 @@ export default function ScannerScreen() {
               ))}
             </View>
           )}
+          {stage === 'before' && ENABLE_FOOD_GROUP_TRACKING && (
+            <View style={styles.card}>
+              <Text style={styles.sectionTitle}>หมู่อาหารที่แนะนำจากเมนู</Text>
+              <Text style={styles.note}>
+                แอปเลือกไว้เบื้องต้นจากชื่อเมนูและอาหารที่ตรวจพบ ไม่ได้ตรวจส่วนผสมทั้งหมด
+                กรุณาแก้ให้ตรงกับอาหารจริงแล้วกดยืนยัน เพื่อใช้ติดตามความหลากหลายหลายวัน
+                รายการนี้ไม่บังคับและไม่เปลี่ยนค่าโภชนาการของเมนู
+              </Text>
+              {FOOD_GROUPS.map((group) => (
+                <TouchableOpacity
+                  key={group.key}
+                  accessibilityRole="checkbox"
+                  accessibilityLabel={`หมู่อาหาร ${group.label}`}
+                  accessibilityState={{ checked: !!meal.foodGroups?.includes(group.key) }}
+                  disabled={working}
+                  onPress={() => toggleFoodGroup(group.key)}
+                  style={[styles.row, { minHeight: 44 }]}
+                >
+                  <Text style={styles.label}>
+                    {meal.foodGroups?.includes(group.key) ? '☑' : '☐'} {group.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity
+                accessibilityRole="button"
+                disabled={working || !meal.foodGroups?.length}
+                style={styles.secondary}
+                onPress={() => setMeal({ ...meal, foodGroupsConfirmed: true })}
+              >
+                <Text style={styles.link}>
+                  {meal.foodGroupsConfirmed ? 'ยืนยันหมู่อาหารแล้ว' : 'ยืนยันหมู่อาหารที่เลือก'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
           {after && (
             <View style={styles.card}>
               {stage !== 'saved' && (
@@ -591,6 +695,36 @@ export default function ScannerScreen() {
                     </>
                   )}
                 </>
+              )}
+              {stage !== 'saved' && afterCandidates.length > 0 && (
+                <View style={{ gap: 10 }}>
+                  <Text style={styles.label}>ยืนยันว่าเป็นอาหารเดิม</Text>
+                  <Text style={styles.note}>
+                    เมนูก่อนกินคือ {meal.menu} แต่ภาพหลังกินตรวจเป็นชื่ออื่น
+                    เลือกรายการที่เป็นอาหารเดิมเพื่อใช้พื้นที่คำนวณ ชื่อและสารอาหารยังใช้{' '}
+                    {meal.menu}
+                  </Text>
+                  {afterCandidates.map((candidate, index) => (
+                    <TouchableOpacity
+                      key={`${candidate.detectedMenu}-${index}`}
+                      accessibilityRole="button"
+                      accessibilityLabel={`ยืนยันพื้นที่ ${candidate.detectedMenu || candidate.menu} เป็น ${meal.menu} ที่เหลือ`}
+                      disabled={working}
+                      style={styles.button}
+                      onPress={() => confirmAfterMatch(candidate)}
+                    >
+                      <Text style={styles.buttonText}>
+                        ยืนยัน {candidate.detectedMenu || candidate.menu} คือ {meal.menu} ที่เหลือ
+                      </Text>
+                      <Text style={[styles.note, { color: '#FFFFFF' }]}>
+                        ความมั่นใจของชื่อที่โมเดลตรวจ {(candidate.confidence * 100).toFixed(0)}%
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                  <Text style={styles.note}>
+                    หากรายการนี้เป็นอาหารอย่างอื่น หรือไม่แน่ใจ ให้เลือกปรับเปอร์เซ็นต์เอง
+                  </Text>
+                </View>
               )}
               {afterMethod === 'empty' && (
                 <Text style={styles.menu}>กินหมดแล้ว · กินไป 100% · เหลือ 0%</Text>

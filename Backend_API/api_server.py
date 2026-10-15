@@ -7,7 +7,7 @@ import cv2
 import mysql.connector
 import numpy as np
 from flask import Flask, jsonify, request
-from menu_reference import load_menu_reference
+from menu_reference import load_menu_label, load_menu_reference
 from menu_predictor import MenuPredictor
 from spoon_bowl import measure_spoon_bowl
 
@@ -31,6 +31,7 @@ SCALE_REFERENCE = 'coco-yolo11s-seg-bowl-pca-v1'
 MAX_IMAGE_SIZE = 1280
 FOOD_IMAGE_SIZE = 960
 SPOON_IMAGE_SIZE = 640
+DETECTED_FOOD_CONFIDENCE = 0.25
 
 
 def load_models():
@@ -112,6 +113,40 @@ def build_menu_candidates(areas, confidences, spoon_area):
     return candidates
 
 
+def build_detected_foods(confidences):
+    """รายการอาหารในภาพ แยกจากสามตัวเลือกของเมนูหลัก และไม่รวมสารอาหารซ้ำ"""
+    foods = []
+    for name in sorted(confidences, key=confidences.get, reverse=True):
+        confidence = confidences[name]
+        if confidence < DETECTED_FOOD_CONFIDENCE:
+            continue
+        reference = load_menu_reference(name)
+        foods.append({
+            'className': name,
+            'label': reference['menu'],
+            'confidence': confidence,
+        })
+    return foods
+
+
+def build_after_match_candidates(original_menu, areas, confidences, spoon_area):
+    """ให้ผู้ใช้ยืนยันพื้นที่อาหารเดิม เมื่อโมเดลเรียกชื่อหลังกินผิด"""
+    candidates = []
+    for detected_name in sorted(confidences, key=confidences.get, reverse=True)[:3]:
+        candidates.append({
+            'menu': original_menu,
+            'referenceClass': original_menu,
+            'detectedMenu': load_menu_label(detected_name),
+            'confidence': confidences[detected_name],
+            'nutrition': {},
+            'nutritionBasis': 'area-only',
+            'portions': [build_portion(original_menu, areas[detected_name], spoon_area)],
+            'comparisonReady': spoon_area > 0,
+            'scaleReference': SCALE_REFERENCE,
+        })
+    return candidates
+
+
 @app.after_request
 def cors_headers(response):
     origin = request.headers.get('Origin')
@@ -166,6 +201,13 @@ def analyze_food():
         spoon_pixels, spoon_width_px = measure_spoon_bowl(results_spoon, img.shape)
         name = request.form.get('menu_class') if mode == 'after' else max(confidences, key=confidences.get)
         if not name or name not in detected_pixels:
+            if mode == 'after' and name in results_food.names.values():
+                # ยังไม่คำนวณเปอร์เซ็นต์ จนผู้ใช้ยืนยันว่าเป็นพื้นที่อาหารเดิม
+                return jsonify(
+                    status='success', menu=name, referenceClass=name,
+                    nutrition={}, nutritionBasis='area-only', needsMenuConfirmation=True,
+                    candidates=build_after_match_candidates(name, detected_pixels, confidences, spoon_pixels),
+                )
             return jsonify(status='empty', message='ยังตรวจพื้นที่ของเมนูก่อนกินในภาพนี้ไม่ได้ กรุณาถ่ายใหม่หรือเลือกปรับเปอร์เซ็นต์เอง')
         # 4. ก่อนกินใช้สารอาหารต่อหนึ่งจาน หลังกินส่งเฉพาะพื้นที่
         if mode == 'after':
@@ -174,6 +216,7 @@ def analyze_food():
         else:
             result = load_menu_reference(name)
             result['candidates'] = build_menu_candidates(detected_pixels, confidences, spoon_pixels)
+            result['detectedFoods'] = build_detected_foods(confidences)
         result.update(status='success',
                       portions=[build_portion(name, detected_pixels[name], spoon_pixels)],
                       comparisonReady=spoon_pixels > 0,

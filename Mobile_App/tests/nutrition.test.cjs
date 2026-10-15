@@ -4,6 +4,20 @@ const load = require('./load-module.cjs');
 const { NUTRIENTS, splitNutrition, parseAnalysis, estimateLeftover } = load('src/utils/nutrition.ts');
 const nutrition = Object.fromEntries(NUTRIENTS.map(({ key }) => [key, key === 'sodium' ? 800 : 100]));
 
+test('recognized food list survives reload, excludes invalid entries, and never adds nutrients', () => {
+  const result = parseAnalysis({ menu: 'ไข่เจียว', nutrition, detectedFoods: [
+    { className: 'Rice', label: 'ข้าวสวย', confidence: 0.9 },
+    { className: 'Omelet', label: 'ไข่เจียว', confidence: 0.8 },
+    { className: 'Rice', label: 'ข้าวซ้ำ', confidence: 0.5 },
+    { className: 'wrong', label: 'คะแนนไม่ถูกต้อง', confidence: 2 },
+    { className: 'blank', label: ' ', confidence: 0.7 },
+  ] });
+  const restored = parseAnalysis(JSON.parse(JSON.stringify(result)));
+  assert.deepEqual(Array.from(restored.detectedFoods, item => item.label), ['ข้าวสวย', 'ไข่เจียว']);
+  assert.equal(restored.nutrition.calories, nutrition.calories);
+  assert.equal(parseAnalysis({ menu: 'มื้อเก่า', nutrition }).detectedFoods, undefined);
+});
+
 test('per-plate display has energy plus five nutrients and excludes saturated fat and sodium', () => {
   const { DISPLAY_NUTRIENTS, PLATE_NUTRIENTS } = load('src/utils/nutrition.ts');
   assert.equal(DISPLAY_NUTRIENTS.length, 6);

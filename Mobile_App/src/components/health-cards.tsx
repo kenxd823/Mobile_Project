@@ -2,7 +2,7 @@ import { Text, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { Card, Icon, palette, Progress, ui } from './design-system';
 import { Profile } from '@/services/profile-storage';
-import { Nutrition, formatNutrient } from '@/utils/nutrition';
+import { DAILY_NUTRIENT_TARGETS, Nutrition, formatNutrient } from '@/utils/nutrition';
 
 export function Ring({
   percent,
@@ -111,15 +111,15 @@ export function NutrientCard({ totals, goal }: { totals: Nutrition; goal: number
     {
       label: 'โปรตีน (Protein)',
       value: totals.protein,
-      target: 60,
-      text: formatNutrient(totals.protein) + 'g / 60g',
+      target: DAILY_NUTRIENT_TARGETS.protein,
+      text: formatNutrient(totals.protein) + `g / ${DAILY_NUTRIENT_TARGETS.protein}g`,
       color: '#2D8036',
     },
     {
       label: 'ไฟเบอร์ (Fiber)',
       value: totals.fiber,
-      target: 25,
-      text: formatNutrient(totals.fiber) + 'g / 25g',
+      target: DAILY_NUTRIENT_TARGETS.fiber,
+      text: formatNutrient(totals.fiber) + `g / ${DAILY_NUTRIENT_TARGETS.fiber}g`,
       color: palette.orange,
     },
     {

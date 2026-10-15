@@ -1,7 +1,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const load = require('./load-module.cjs');
-const nutrition = load('src/utils/nutrition.ts');
+const nutrition = load('src/utils/nutrition.ts', {}, { Error });
+const groupSuggestions = load('src/utils/food-group-suggestions.ts', { '@/utils/nutrition': nutrition });
 
 function harness({ pending = null, responses = [], picked = [], permissionGranted = true, canGoBack = true, reminderFailure = false } = {}) {
   const states = [], refs = [], saved = [], pendingWrites = [], uploads = [], imageUris = [], navigation = [], reminderCalls = [];
@@ -26,6 +27,7 @@ function harness({ pending = null, responses = [], picked = [], permissionGrante
     '@/services/meal-reminders': { syncMealReminders: async request => { reminderCalls.push(request); if (reminderFailure) throw new Error('native scheduler unavailable'); return { supported: true, allowed: true, afterMeal: true }; } },
     '@/services/meal-storage': { getPendingMeal: async () => pending, savePendingMeal: async meal => pendingWrites.push(meal), finishMeal: async (meal, percent) => saved.push({ meal, percent }) },
     '@/utils/nutrition': nutrition,
+    '@/utils/food-group-suggestions': groupSuggestions,
   }, { Error }).default;
   const render = () => { stateIndex = refIndex = 0; tree = Screen(); first = false; return tree; };
   const nodes = () => walk(tree);
@@ -135,6 +137,45 @@ test('failed automatic analysis retains the photo and permits manual adjustment'
   assert.equal(h.saved[0].percent, 25);
 });
 
+test('after eating can confirm a differently named detection while preserving the original recipe and nutrients', async () => {
+  const before = { ...pendingMeal(), menu: 'ไข่เจียวไข่ไก่', nutritionVariantId: 'chicken-egg', referenceClass: 'Omelet', portions: [{ className: 'Omelet', area: 200, relativeArea: 200 }] };
+  const candidate = { menu: 'Omelet', detectedMenu: 'ไข่ต้ม', confidence: 0.8, nutrition: {}, nutritionBasis: 'area-only', referenceClass: 'Omelet', comparisonReady: true, portions: [{ className: 'Omelet', area: 50, relativeArea: 50 }] };
+  const response = nutrition.parseAnalysis({ menu: 'Omelet', nutrition: {}, nutritionBasis: 'area-only', needsMenuConfirmation: true, candidates: [candidate] });
+  const h = harness({ pending: before, responses: [response] });
+  h.render(); await tick(h); await takeAfter(h);
+  await h.press('ให้แอปวิเคราะห์อาหารที่เหลือ');
+  assert.match(h.text(), /ยืนยันว่าเป็นอาหารเดิม/);
+  assert.equal(h.button('ยืนยันและบันทึกผลหลังกิน').props.disabled, true);
+  const choice = h.nodes().find(node => node.props?.accessibilityLabel === 'ยืนยันพื้นที่ ไข่ต้ม เป็น ไข่เจียวไข่ไก่ ที่เหลือ');
+  assert.ok(choice);
+  await choice.props.onPress(); h.render();
+  assert.match(h.text(), /กินไป 75% · เหลือ 25%/);
+  await h.press('ยืนยันและบันทึกผลหลังกิน');
+  assert.equal(h.saved[0].meal.menu, 'ไข่เจียวไข่ไก่');
+  assert.equal(h.saved[0].meal.nutritionVariantId, 'chicken-egg');
+  assert.equal(h.saved[0].meal.nutrition.calories, before.nutrition.calories);
+  assert.equal(h.saved[0].percent, 25);
+});
+
+test('confirming the original food cannot bypass a missing spoon reference', async () => {
+  const candidate = { ...afterAnalysis(), detectedMenu: 'ไข่ต้ม', confidence: 0.8, comparisonReady: false };
+  const response = nutrition.parseAnalysis({ menu: 'rice', nutrition: {}, nutritionBasis: 'area-only', needsMenuConfirmation: true, candidates: [candidate] });
+  const h = harness({ pending: pendingMeal(), responses: [response, new Error('ส่งภาพไม่สำเร็จ')] });
+  h.render(); await tick(h); await takeAfter(h);
+  await h.press('ให้แอปวิเคราะห์อาหารที่เหลือ');
+  const choice = h.nodes().find(node => node.props?.accessibilityLabel === 'ยืนยันพื้นที่ ไข่ต้ม เป็น ข้าว ที่เหลือ');
+  assert.ok(choice);
+  await choice.props.onPress(); h.render();
+  assert.match(h.text(), /ต้องเห็นช้อนอันเดิม/);
+  assert.equal(h.button('ยืนยันและบันทึกผลหลังกิน').props.disabled, true);
+  await h.press('ให้แอปวิเคราะห์อาหารที่เหลือ');
+  assert.ok(!h.nodes().some(node => node.props?.accessibilityLabel === 'ยืนยันพื้นที่ ไข่ต้ม เป็น ข้าว ที่เหลือ'));
+  await h.press('ปรับเปอร์เซ็นต์เอง');
+  h.nodes().find(node => node.type === 'LeftoverSlider').props.onChange(25); h.render();
+  await h.press('ยืนยันและบันทึกผลหลังกิน');
+  assert.equal(h.saved[0].percent, 25);
+});
+
 test('no food detections do not become eaten-all until the user confirms an empty plate', async () => {
   const empty = nutrition.parseAnalysis({ menu: 'rice', nutrition: {}, nutritionBasis: 'area-only', emptyCandidate: true });
   const h = harness({ pending: pendingMeal(), responses: [empty] });
@@ -177,14 +218,21 @@ test('library images remain usable for before and required after photos without 
 
 test('candidate selection is required and replaces nutrition and area with the selected menu', async () => {
   const base = pendingMeal();
+  const detectedFoods = [
+    { className: 'Rice', label: 'ข้าวสวย', confidence: 0.9 },
+    { className: 'Omelet', label: 'ไข่เจียว', confidence: 0.8 },
+  ];
   const candidates = [
     { ...base, menu: 'เมนูหนึ่ง', confidence: 0.8 },
     { ...base, menu: 'เมนูสอง', referenceClass: 'second', nutrition: { ...base.nutrition, calories: 800 }, portions: [{ className: 'second', area: 100, relativeArea: 1 }], confidence: 0.6 },
     { ...base, menu: 'เมนูสาม', referenceClass: 'third', confidence: 0.3 },
   ];
-  const h = harness({ responses: [{ ...base, candidates }] });
+  const h = harness({ responses: [{ ...base, candidates, detectedFoods }] });
   h.render(); await tick(h); h.readyCamera();
   await h.press('ถ่ายรูปและวิเคราะห์อาหาร');
+  assert.match(h.text(), /อาหารที่ตรวจพบในภาพก่อนกิน/);
+  assert.match(h.text(), /ข้าวสวย/);
+  assert.match(h.text(), /ไข่เจียว/);
   assert.equal(h.button('บันทึกก่อนกิน / เริ่มกิน').props.disabled, true);
   const choices = h.nodes().filter(node => node.props?.accessibilityRole === 'radio');
   assert.equal(choices.length, 3);
@@ -193,4 +241,21 @@ test('candidate selection is required and replaces nutrition and area with the s
   assert.equal(h.pendingWrites[0].menu, 'เมนูสอง');
   assert.equal(h.pendingWrites[0].nutrition.calories, 800);
   assert.equal(h.pendingWrites[0].portions[0].className, 'second');
+  assert.deepEqual(h.pendingWrites[0].detectedFoods, detectedFoods);
+});
+
+test('food group controls and automatic suggestions are disabled while normal meal logging remains usable', async () => {
+  const h = harness({ responses: [pendingMeal()] });
+  h.render(); await tick(h); h.readyCamera();
+  await h.press('ถ่ายรูปและวิเคราะห์อาหาร');
+  assert.ok(!h.nodes().some(node => node.props?.accessibilityRole === 'checkbox'));
+  assert.ok(!h.button('ยืนยันหมู่อาหารที่เลือก'));
+  await h.press('บันทึกก่อนกิน / เริ่มกิน');
+  assert.equal(h.pendingWrites[0].foodGroups, undefined);
+  assert.equal(h.pendingWrites[0].foodGroupsConfirmed, undefined);
+  await takeAfter(h);
+  await h.press('ปรับเปอร์เซ็นต์เอง');
+  h.nodes().find(node => node.type === 'LeftoverSlider').props.onChange(25); h.render();
+  await h.press('ยืนยันและบันทึกผลหลังกิน');
+  assert.equal(h.saved[0].percent, 25);
 });
